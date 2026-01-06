@@ -1,18 +1,22 @@
 package org.example.fleets.user.model.vo;
 
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 
-import java.util.Date;
-
+/**
+ * 用户登录VO
+ */
 @Data
-@Setter
-@Getter
 public class UserLoginVO {
+    
     private Long userId;
+    
     private String username;
+    
     private String nickname;
+    
+    private String avatar;
+    
     private String token;
-    private String tokenHead;
+    
+    private Long expireTime;  // Token过期时间（时间戳）
 }

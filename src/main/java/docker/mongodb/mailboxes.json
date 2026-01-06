@@ -1,0 +1,11 @@
+{
+  "_id": "ObjectId()",
+  "user_id": "NumberLong()",
+  "sequence_id": "NumberLong()",
+  "message_id": "NumberLong()",
+  "conversation_id": "String",
+  "is_read": "Boolean",
+  "is_deleted": "Boolean",
+  "created_at": "ISODate()",
+  "updated_at": "ISODate()"
+}

@@ -1,0 +1,16 @@
+{
+    "_id": "ObjectId()",
+    "message_id": "NumberLong()",
+    "conversation_id": "String",
+    "sender_id": "NumberLong()",
+    "sender_type": "Number",
+    "content_type": "Number",
+    "content": "String",
+    "mentions": ["NumberLong()"],
+    "reply_to": "NumberLong()",
+    "status": "Number",
+    "is_recalled": "Boolean",
+    "extra": "Object",
+    "created_at": "ISODate()",
+    "updated_at": "ISODate()"
+}

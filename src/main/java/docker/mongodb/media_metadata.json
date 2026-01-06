@@ -1,0 +1,19 @@
+{
+  "_id": "ObjectId()",
+  "file_id": "NumberLong()",
+  "message_id": "NumberLong()",
+  "user_id": "NumberLong()",
+  "media_type": "Number",
+  "original_name": "String",
+  "file_name": "String",
+  "file_path": "String",
+  "file_size": "NumberLong()",
+  "file_md5": "String",
+  "duration": "Number",
+  "width": "Number",
+  "height": "Number",
+  "thumbnail": "String",
+  "status": "Number",
+  "created_at": "ISODate()",
+  "updated_at": "ISODate()"
+}

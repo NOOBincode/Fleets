@@ -1,0 +1,10 @@
+{
+  "_id": "ObjectId()",
+  "user_id": "NumberLong()",
+  "message_id": "NumberLong()",
+  "conversation_id": "String",
+  "sender_id": "NumberLong()",
+  "content_type": "Number",
+  "created_at": "ISODate()",
+  "expire_at": "ISODate()"
+}

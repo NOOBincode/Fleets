@@ -1,0 +1,12 @@
+{
+  "_id": "ObjectId()",
+  "group_id": "NumberLong()",
+  "message_id": "NumberLong()",
+  "sender_id": "NumberLong()",
+  "content_type": "Number",
+  "content": "String",
+  "mentions": "[NumberLong()]",
+  "is_recalled": "Boolean",
+  "created_at": "ISODate()",
+  "updated_at": "ISODate()"
+}

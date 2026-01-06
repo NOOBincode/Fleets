@@ -22,7 +22,7 @@ import java.util.Map;
 @Component
 public class JwtUtils {
 
-    @Value("${jwt.secret:defaultSecretKey12345678901234567890}")
+    @Value("${jwt.secret:jrcMVDHYt2haPsDGxDKambIjjXOKojLvKv6TycexYjo=}")
     private String secret;
 
     @Value("${jwt.expiration:86400}")
@@ -165,5 +165,10 @@ public class JwtUtils {
     private boolean isTokenExpired(String token) {
         Date expiration = getExpirationDateFromToken(token);
         return expiration.before(new Date());
+    }
+
+    public long getExpiration(String token) {
+        Date expiration = getExpirationDateFromToken(token);
+        return expiration.getTime();
     }
 }
