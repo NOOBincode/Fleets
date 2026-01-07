@@ -39,8 +39,15 @@ public class CommonResult<T> {
     /**
      * 失败返回结果
      */
-    public static <T> CommonResult<T> failed(String message) {
-        return new CommonResult<>(ResultCode.FAILED.getCode(), message, null);
+    public static <T> CommonResult<T> failed(T data, String message) {
+        return new CommonResult<>(ResultCode.FAILED.getCode(), message, data);
+    }
+    
+    /**
+     * 失败返回结果（带错误码）
+     */
+    public static <T> CommonResult<T> failed(long code, String message) {
+        return new CommonResult<>(code, message, null);
     }
 
     /**

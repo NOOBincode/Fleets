@@ -1,5 +1,6 @@
 package org.example.fleets.common.exception;
 
+import cn.dev33.satoken.exception.NotLoginException;
 import lombok.extern.slf4j.Slf4j;
 import org.example.fleets.common.api.CommonResult;
 import org.springframework.validation.BindException;
@@ -17,6 +18,15 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    
+    /**
+     * 处理 Sa-Token 未登录异常
+     */
+    @ExceptionHandler(NotLoginException.class)
+    public CommonResult<?> handleNotLoginException(NotLoginException e, HttpServletRequest request) {
+        log.warn("未登录访问 [{}]: {}", request.getRequestURI(), e.getMessage());
+        return CommonResult.failed(ErrorCode.UNAUTHORIZED.getCode(), "请先登录");
+    }
     
     /**
      * 处理业务异常

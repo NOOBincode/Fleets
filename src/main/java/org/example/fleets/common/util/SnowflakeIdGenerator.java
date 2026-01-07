@@ -1,7 +1,5 @@
 package org.example.fleets.common.util;
 
-import org.springframework.stereotype.Component;
-
 /**
  * 雪花算法ID生成器
  * 
@@ -14,7 +12,6 @@ import org.springframework.stereotype.Component;
  * 3. 分布式：不同机器生成的ID不会重复
  * 4. 无需数据库：不依赖数据库，性能更好
  */
-@Component
 public class SnowflakeIdGenerator {
     
     // ==============================常量==============================

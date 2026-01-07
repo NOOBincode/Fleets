@@ -58,7 +58,8 @@ public enum ErrorCode {
     DATABASE_ERROR(9002, "数据库错误"),
     REDIS_ERROR(9003, "Redis错误"),
     MQ_ERROR(9004, "消息队列错误"),
-    NETWORK_ERROR(9005, "网络错误");
+    NETWORK_ERROR(9005, "网络错误"),
+    NOT_IMPLEMENTED(9006, "功能暂未实现");
     
     private final Integer code;
     private final String message;

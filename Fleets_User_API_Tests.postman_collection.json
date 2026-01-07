@@ -1,0 +1,603 @@
+{
+	"info": {
+		"_postman_id": "fleets-user-api-tests",
+		"name": "Fleets User API Tests",
+		"description": "Complete test suite for Fleets user module APIs",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. User Registration",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has id\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.id).to.exist;",
+							"    pm.collectionVariables.set(\"userId\", jsonData.id);",
+							"    pm.collectionVariables.set(\"username\", jsonData.username);",
+							"});",
+							"",
+							"pm.test(\"Username matches\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.username).to.be.a('string');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"testuser{{$timestamp}}\",\n  \"password\": \"Test123456\",\n  \"phone\": \"138{{$timestamp}}\",\n  \"email\": \"test{{$timestamp}}@example.com\",\n  \"nickname\": \"测试用户\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/user/register",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "register"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "2. User Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has token\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.token).to.exist;",
+							"    pm.collectionVariables.set(\"token\", jsonData.token);",
+							"    pm.collectionVariables.set(\"userId\", jsonData.userId);",
+							"});",
+							"",
+							"pm.test(\"Token is valid JWT\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.token).to.match(/^[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+$/);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Use the username from registration",
+							"var username = pm.collectionVariables.get(\"username\");",
+							"if (!username) {",
+							"    console.log(\"No username found, using default\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"Test123456\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/user/login",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "login"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3. Check Username Exists",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has exists field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.exists).to.be.a('boolean');",
+							"});",
+							"",
+							"pm.test(\"Username exists\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.exists).to.be.true;",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/user/check/username/{{username}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "check", "username", "{{username}}"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "4. Check Phone Exists",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has exists field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.exists).to.be.a('boolean');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/user/check/phone/13800138000",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "check", "phone", "13800138000"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "5. Check Email Exists",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has exists field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.exists).to.be.a('boolean');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/user/check/email/test@example.com",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "check", "email", "test@example.com"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "6. Get User Info",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has user data\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.id).to.exist;",
+							"    pm.expect(jsonData.username).to.exist;",
+							"});",
+							"",
+							"pm.test(\"User ID matches\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    var expectedUserId = pm.collectionVariables.get(\"userId\");",
+							"    pm.expect(jsonData.id).to.eql(expectedUserId);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/user/{{userId}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "{{userId}}"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "7. Update User Info",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Update successful\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"userId\": {{userId}},\n  \"nickname\": \"更新后的昵称\",\n  \"gender\": 1,\n  \"birthday\": \"1990-01-01\",\n  \"signature\": \"这是我的个性签名\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/user/update",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "update"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "8. Update Password",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Password updated\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"userId\": {{userId}},\n  \"oldPassword\": \"Test123456\",\n  \"newPassword\": \"NewTest123456\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/user/password",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "password"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "9. Get User List",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has pagination data\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.list).to.be.an('array');",
+							"    pm.expect(jsonData.total).to.exist;",
+							"    pm.expect(jsonData.pageNum).to.exist;",
+							"    pm.expect(jsonData.pageSize).to.exist;",
+							"});",
+							"",
+							"pm.test(\"List contains users\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.list.length).to.be.at.least(0);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"\",\n  \"nickname\": \"\",\n  \"status\": null\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/user/list?pageNum=1&pageSize=10",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "list"],
+					"query": [
+						{
+							"key": "pageNum",
+							"value": "1"
+						},
+						{
+							"key": "pageSize",
+							"value": "10"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "10. Update User Status (Enable)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Status updated\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/user/{{userId}}/status/1",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "{{userId}}", "status", "1"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "11. Update User Status (Disable)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Status updated\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/user/{{userId}}/status/0",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "{{userId}}", "status", "0"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "12. User Logout",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Logout successful\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});",
+							"",
+							"// Clear token after logout",
+							"pm.collectionVariables.set(\"token\", \"\");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/user/logout?userId={{userId}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "logout"],
+					"query": [
+						{
+							"key": "userId",
+							"value": "{{userId}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "13. Delete User (Soft Delete)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Delete successful\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/user/{{userId}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "user", "{{userId}}"]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

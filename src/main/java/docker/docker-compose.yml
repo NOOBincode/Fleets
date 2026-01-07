@@ -1,52 +1,92 @@
-version: '3.8'
-
 services:
   # MySQL服务
   mysql:
     image: mysql:8.0
-    container_name: mysql
+    container_name: fleets-mysql
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: fleets
-      MYSQL_USER: root
-      MYSQL_PASSWORD: root
+      TZ: Asia/Shanghai
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./init/mysql:/docker-entrypoint-initdb.d
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      - ./mysql:/docker-entrypoint-initdb.d
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-time-zone='+8:00'
     networks:
-      - app_network
+      - fleets_network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 10s
-      retries: 5
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Redis服务
+  redis:
+    image: redis:7.0-alpine
+    container_name: fleets-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ""
+    networks:
+      - fleets_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # MongoDB服务
+  mongodb:
+    image: mongo:5.0
+    container_name: fleets-mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: fleets
+      TZ: Asia/Shanghai
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongodb:/docker-entrypoint-initdb.d
+    networks:
+      - fleets_network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/fleets --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   # RocketMQ NameServer
   rocketmq-namesrv:
     image: apache/rocketmq:4.9.4
-    container_name: rocketmq-namesrv
+    container_name: fleets-rocketmq-namesrv
     restart: always
     ports:
       - "9876:9876"
     volumes:
       - rocketmq_namesrv_logs:/home/rocketmq/logs
+    environment:
+      JAVA_OPT_EXT: "-Xms512m -Xmx512m"
     command: sh mqnamesrv
     networks:
-      - app_network
+      - fleets_network
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "9876"]
-      interval: 5s
-      timeout: 10s
-      retries: 5
+      test: ["CMD-SHELL", "nc -z localhost 9876 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   # RocketMQ Broker
   rocketmq-broker:
     image: apache/rocketmq:4.9.4
-    container_name: rocketmq-broker
+    container_name: fleets-rocketmq-broker
     restart: always
     ports:
       - "10909:10909"
@@ -54,122 +94,72 @@ services:
     volumes:
       - rocketmq_broker_logs:/home/rocketmq/logs
       - rocketmq_broker_store:/home/rocketmq/store
-      - ./init/rocketmq/broker.conf:/home/rocketmq/rocketmq-4.9.4/conf/broker.conf
+    environment:
+      NAMESRV_ADDR: "rocketmq-namesrv:9876"
+      JAVA_OPT_EXT: "-Xms512m -Xmx512m"
     command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/rocketmq-4.9.4/conf/broker.conf
     depends_on:
-      - rocketmq-namesrv
+      rocketmq-namesrv:
+        condition: service_healthy
     networks:
-      - app_network
+      - fleets_network
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "10911"]
-      interval: 5s
-      timeout: 10s
-      retries: 5
+      test: ["CMD-SHELL", "nc -z localhost 10911 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
-  # RocketMQ Dashboard (可选的Web管理界面)
+  # RocketMQ Dashboard (Web管理界面)
+  # 使用 styletang 维护的镜像，更稳定且易于拉取
   rocketmq-dashboard:
-    image: apacherocketmq/rocketmq-dashboard:latest
-    container_name: rocketmq-dashboard
+    image: styletang/rocketmq-console-ng:latest
+    container_name: fleets-rocketmq-dashboard
     restart: always
     ports:
-      - "8080:8080"
+      - "8088:8080"
     environment:
       JAVA_OPTS: "-Drocketmq.namesrv.addr=rocketmq-namesrv:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false"
     depends_on:
-      - rocketmq-namesrv
+      rocketmq-namesrv:
+        condition: service_healthy
     networks:
-      - app_network
+      - fleets_network
 
-  # Redis服务
-  redis:
-    image: redis:6.2
-    container_name: redis
-    restart: always
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    networks:
-      - app_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 10s
-      retries: 5
-  # MongoDB服务
-  mongodb:
-    image: mongo:4.4
-    container_name: mongodb
-    restart: always
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: root123
-      MONGO_INITDB_DATABASE: fleets
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-      - ./init/mongodb:/docker-entrypoint-initdb.d
-    networks:
-      - app_network
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongo mongodb:27017/fleets --quiet
-      interval: 10s
-      timeout: 10s
-      retries: 5
-
-  im-openresty:
-      image: openresty/openresty:1.19.3.2-alpine
-      container_name: im-openresty
-      restart: always
-      ports:
-        - "80:80"
-        - "9001:9001"
-      volumes:
-        - ../openresty/conf/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
-        - ../openresty/lua:/usr/local/openresty/nginx/lua
-      depends_on:
-        - app
-        - redis
-      networks:
-        - app_network
-  # 应用服务（可选，如果您想在Docker中运行您的应用）
-  app:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-    container_name: fleets-app
-    restart: always
-    ports:
-      - "8081:8080"
-    environment:
-      # 数据库配置
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/fleets?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_DATA_MONGODB_URI: mongodb://@mongodb:27017/fleets
-      # RocketMQ配置
-      SPRING_CLOUD_STREAM_ROCKETMQ_BINDER_NAME_SERVER: rocketmq-namesrv:9876
-      # Redis配置
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
-    depends_on:
-      - mysql
-      - rocketmq-broker
-      - redis
-      - mongodb
-    networks:
-      - app_network
+  # OpenResty 网关 - 暂时注释，开发阶段直接访问应用
+  # 取消注释时需要修正volume路径为: ../openresty/conf/nginx.conf
+  # openresty:
+  #   image: openresty/openresty:1.21.4.1-alpine
+  #   container_name: fleets-openresty
+  #   restart: always
+  #   ports:
+  #     - "80:80"
+  #     - "9001:9001"
+  #   volumes:
+  #     - ../openresty/conf/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+  #     - ../openresty/lua:/usr/local/openresty/nginx/lua:ro
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - fleets_network
 
 networks:
-  app_network:
+  fleets_network:
     driver: bridge
+    name: fleets_network
 
 volumes:
   mysql_data:
-  rocketmq_namesrv_logs:
-  rocketmq_broker_logs:
-  rocketmq_broker_store:
+    name: fleets_mysql_data
   redis_data:
+    name: fleets_redis_data
   mongodb_data:
+    name: fleets_mongodb_data
+  rocketmq_namesrv_logs:
+    name: fleets_rocketmq_namesrv_logs
+  rocketmq_broker_logs:
+    name: fleets_rocketmq_broker_logs
+  rocketmq_broker_store:
+    name: fleets_rocketmq_broker_store

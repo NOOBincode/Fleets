@@ -21,6 +21,15 @@ public class Assert {
     /**
      * 断言对象不为空
      */
+    public static void notNull(Object object, ErrorCode errorCode, String message) {
+        if (object == null) {
+            throw new BusinessException(errorCode.getCode(), message);
+        }
+    }
+    
+    /**
+     * 断言对象不为空
+     */
     public static void notNull(Object object, String message) {
         if (object == null) {
             throw new BusinessException(message);
@@ -33,6 +42,15 @@ public class Assert {
     public static void isTrue(boolean condition, ErrorCode errorCode) {
         if (!condition) {
             throw new BusinessException(errorCode);
+        }
+    }
+    
+    /**
+     * 断言条件为真
+     */
+    public static void isTrue(boolean condition, ErrorCode errorCode, String message) {
+        if (!condition) {
+            throw new BusinessException(errorCode.getCode(), message);
         }
     }
     
