@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # Prometheus - 指标存储和查询
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: fleets-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/rules:/etc/prometheus/rules
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    networks:
+      - fleets-network
+    restart: unless-stopped
+
+  # Loki - 日志存储
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: fleets-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - fleets-network
+    restart: unless-stopped
+
+  # Fluentd - 日志采集
+  fluentd:
+    image: fluent/fluentd:v1.16-debian
+    container_name: fleets-fluentd
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    volumes:
+      - ./fluentd/fluent.conf:/fluentd/etc/fluent.conf
+      - ../../logs:/var/log/fleets  # 挂载应用日志目录
+    networks:
+      - fleets-network
+    depends_on:
+      - loki
+    restart: unless-stopped
+    # 安装Loki插件
+    user: root
+    entrypoint: >
+      bash -c "
+        gem install fluent-plugin-grafana-loki &&
+        exec /fluentd/entrypoint.sh fluentd
+      "
+
+  # Grafana - 统一可视化界面
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: fleets-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - fleets-network
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
+  # AlertManager - 告警管理（可选）
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: fleets-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - fleets-network
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+    driver: local
+  loki-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  fleets-network:
+    driver: bridge

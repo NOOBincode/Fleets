@@ -22,12 +22,42 @@ public class FriendshipController {
     private FriendshipService friendshipService;
     
     /**
-     * 添加好友
+     * 添加好友（发送好友请求）
      */
     @PostMapping("/add")
     public CommonResult<Boolean> addFriend(@RequestBody FriendAddDTO addDTO, HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
         boolean result = friendshipService.addFriend(userId, addDTO);
+        return CommonResult.success(result, "好友请求已发送");
+    }
+    
+    /**
+     * 接受好友请求
+     */
+    @PostMapping("/accept/{friendId}")
+    public CommonResult<Boolean> acceptFriendRequest(@PathVariable Long friendId, HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        boolean result = friendshipService.acceptFriendRequest(userId, friendId);
+        return CommonResult.success(result, "已接受好友请求");
+    }
+    
+    /**
+     * 拒绝好友请求
+     */
+    @PostMapping("/reject/{friendId}")
+    public CommonResult<Boolean> rejectFriendRequest(@PathVariable Long friendId, HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        boolean result = friendshipService.rejectFriendRequest(userId, friendId);
+        return CommonResult.success(result, "已拒绝好友请求");
+    }
+    
+    /**
+     * 获取待处理的好友请求列表
+     */
+    @GetMapping("/requests")
+    public CommonResult<List<FriendVO>> getPendingFriendRequests(HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        List<FriendVO> result = friendshipService.getPendingFriendRequests(userId);
         return CommonResult.success(result);
     }
     
@@ -38,7 +68,7 @@ public class FriendshipController {
     public CommonResult<Boolean> deleteFriend(@PathVariable Long friendId, HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
         boolean result = friendshipService.deleteFriend(userId, friendId);
-        return CommonResult.success(result);
+        return CommonResult.success(result, "已删除好友");
     }
     
     /**
@@ -48,7 +78,7 @@ public class FriendshipController {
     public CommonResult<Boolean> blockFriend(@PathVariable Long friendId, HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
         boolean result = friendshipService.blockFriend(userId, friendId);
-        return CommonResult.success(result);
+        return CommonResult.success(result, "已拉黑该好友");
     }
     
     /**
@@ -58,7 +88,7 @@ public class FriendshipController {
     public CommonResult<Boolean> unblockFriend(@PathVariable Long friendId, HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
         boolean result = friendshipService.unblockFriend(userId, friendId);
-        return CommonResult.success(result);
+        return CommonResult.success(result, "已取消拉黑");
     }
     
     /**
@@ -71,7 +101,20 @@ public class FriendshipController {
             HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
         boolean result = friendshipService.updateRemark(userId, friendId, remark);
-        return CommonResult.success(result);
+        return CommonResult.success(result, "备注已更新");
+    }
+    
+    /**
+     * 更新好友分组
+     */
+    @PutMapping("/{friendId}/group")
+    public CommonResult<Boolean> updateGroup(
+            @PathVariable Long friendId,
+            @RequestParam String groupName,
+            HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        boolean result = friendshipService.updateGroup(userId, friendId, groupName);
+        return CommonResult.success(result, "分组已更新");
     }
     
     /**

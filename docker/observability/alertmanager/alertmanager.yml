@@ -1,0 +1,100 @@
+global:
+  resolve_timeout: 5m
+  # SMTP配置（邮件告警）
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alertmanager@example.com'
+  smtp_auth_username: 'alertmanager@example.com'
+  smtp_auth_password: 'your-password'
+  smtp_require_tls: true
+
+# 告警路由
+route:
+  group_by: ['alertname', 'severity', 'instance']
+  group_wait: 10s        # 等待10秒收集同组告警
+  group_interval: 10s    # 同组告警间隔10秒
+  repeat_interval: 1h    # 重复告警间隔1小时
+  receiver: 'default'    # 默认接收器
+  
+  # 子路由
+  routes:
+    # 严重告警立即发送
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      repeat_interval: 5m
+    
+    # 警告级别告警
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      repeat_interval: 2h
+    
+    # 业务告警
+    - match:
+        team: business
+      receiver: 'business-alerts'
+
+# 告警接收器
+receivers:
+  # 默认接收器
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
+
+  # 严重告警 - 钉钉 + 邮件
+  - name: 'critical-alerts'
+    webhook_configs:
+      # 钉钉机器人
+      - url: 'https://oapi.dingtalk.com/robot/send?access_token=YOUR_DINGTALK_TOKEN'
+        send_resolved: true
+    email_configs:
+      - to: 'admin@example.com'
+        headers:
+          Subject: '[CRITICAL] Fleets告警'
+        html: |
+          <h3>严重告警</h3>
+          <p><b>告警名称:</b> {{ .GroupLabels.alertname }}</p>
+          <p><b>实例:</b> {{ .GroupLabels.instance }}</p>
+          <p><b>描述:</b> {{ .CommonAnnotations.description }}</p>
+          <p><b>时间:</b> {{ .StartsAt }}</p>
+
+  # 警告告警 - 钉钉
+  - name: 'warning-alerts'
+    webhook_configs:
+      - url: 'https://oapi.dingtalk.com/robot/send?access_token=YOUR_DINGTALK_TOKEN'
+        send_resolved: true
+
+  # 业务告警 - 企业微信/飞书
+  - name: 'business-alerts'
+    webhook_configs:
+      - url: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_WECHAT_KEY'
+        send_resolved: true
+
+# 告警抑制规则
+inhibit_rules:
+  # 应用宕机时，抑制其他所有告警
+  - source_match:
+      alertname: 'FleetsAppDown'
+    target_match_re:
+      alertname: '.*'
+    equal: ['instance']
+  
+  # 严重告警抑制警告告警
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']
+
+# 钉钉机器人配置说明
+# 1. 在钉钉群中添加自定义机器人
+# 2. 获取Webhook地址
+# 3. 替换上面的YOUR_DINGTALK_TOKEN
+# 4. 如果启用了安全设置，需要添加签名验证
+
+# 企业微信机器人配置说明
+# 1. 在企业微信群中添加机器人
+# 2. 获取Webhook Key
+# 3. 替换上面的YOUR_WECHAT_KEY

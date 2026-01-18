@@ -1,0 +1,62 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'fleets-dev'
+    environment: 'development'
+
+# 告警规则文件
+rule_files:
+  - '/etc/prometheus/rules/*.yml'
+
+# AlertManager配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# 抓取配置
+scrape_configs:
+  # Prometheus自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Fleets应用监控
+  - job_name: 'fleets-app'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['host.docker.internal:8080']  # Windows/Mac使用host.docker.internal
+        labels:
+          app: 'fleets'
+          env: 'dev'
+          instance: 'fleets-app-1'
+
+  # MySQL Exporter（可选 - 需要单独部署）
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+        labels:
+          app: 'mysql'
+
+  # Redis Exporter（可选 - 需要单独部署）
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          app: 'redis'
+
+  # MongoDB Exporter（可选 - 需要单独部署）
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+        labels:
+          app: 'mongodb'
+
+  # RocketMQ Exporter（可选 - 需要单独部署）
+  - job_name: 'rocketmq'
+    static_configs:
+      - targets: ['rocketmq-exporter:5557']
+        labels:
+          app: 'rocketmq'

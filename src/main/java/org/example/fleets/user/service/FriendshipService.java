@@ -12,9 +12,24 @@ import java.util.List;
 public interface FriendshipService {
     
     /**
-     * 添加好友
+     * 添加好友（发送好友请求）
      */
     boolean addFriend(Long userId, FriendAddDTO addDTO);
+    
+    /**
+     * 接受好友请求
+     */
+    boolean acceptFriendRequest(Long userId, Long friendId);
+    
+    /**
+     * 拒绝好友请求
+     */
+    boolean rejectFriendRequest(Long userId, Long friendId);
+    
+    /**
+     * 获取待处理的好友请求列表
+     */
+    List<FriendVO> getPendingFriendRequests(Long userId);
     
     /**
      * 删除好友

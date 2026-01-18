@@ -1,0 +1,49 @@
+spring:
+  # 数据源配置（测试环境）
+  datasource:
+    url: jdbc:mysql://localhost:3306/fleets_im_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    
+  # MongoDB配置（测试环境）
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/fleets_im_test
+      
+  # Redis配置（测试环境）
+  redis:
+    host: localhost
+    port: 6379
+    database: 1  # 使用不同的数据库避免污染生产数据
+    password:
+    timeout: 3000ms
+    
+  # RocketMQ配置（测试环境可选）
+  rocketmq:
+    name-server: localhost:9876
+    producer:
+      group: test-producer-group
+      
+# MyBatis-Plus配置
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # 打印SQL日志
+    
+# 日志配置
+logging:
+  level:
+    root: INFO
+    org.example.fleets: DEBUG
+    org.springframework.web: DEBUG
+    com.baomidou.mybatisplus: DEBUG
+    
+# Sa-Token配置（测试环境）
+sa-token:
+  token-name: Authorization
+  timeout: 7200  # 2小时
+  activity-timeout: -1
+  is-concurrent: true
+  is-share: false
+  token-style: uuid
+  is-log: false

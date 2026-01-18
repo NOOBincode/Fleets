@@ -1,0 +1,131 @@
+groups:
+  - name: fleets-app-alerts
+    interval: 30s
+    rules:
+      # 应用宕机告警
+      - alert: FleetsAppDown
+        expr: up{job="fleets-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Fleets应用宕机"
+          description: "Fleets应用 {{ $labels.instance }} 已宕机超过1分钟"
+
+      # 高错误率告警
+      - alert: HighErrorRate
+        expr: |
+          rate(http_server_requests_seconds_count{status=~"5..",job="fleets-app"}[5m]) 
+          / 
+          rate(http_server_requests_seconds_count{job="fleets-app"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "HTTP 5xx错误率过高"
+          description: "{{ $labels.instance }} 的5xx错误率为 {{ $value | humanizePercentage }}，超过5%阈值"
+
+      # JVM堆内存告警
+      - alert: HighHeapMemoryUsage
+        expr: |
+          jvm_memory_used_bytes{area="heap",job="fleets-app"} 
+          / 
+          jvm_memory_max_bytes{area="heap",job="fleets-app"} > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "JVM堆内存使用率过高"
+          description: "{{ $labels.instance }} 的堆内存使用率为 {{ $value | humanizePercentage }}，超过90%"
+
+      # GC频繁告警
+      - alert: FrequentGC
+        expr: rate(jvm_gc_pause_seconds_count{job="fleets-app"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "GC过于频繁"
+          description: "{{ $labels.instance }} 的GC频率为 {{ $value }} 次/秒，可能存在内存泄漏"
+
+      # 接口响应慢告警
+      - alert: SlowAPIResponse
+        expr: |
+          histogram_quantile(0.95, 
+            rate(http_server_requests_seconds_bucket{job="fleets-app"}[5m])
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "API响应时间过长"
+          description: "{{ $labels.uri }} 的P95响应时间为 {{ $value }}秒，超过1秒阈值"
+
+      # 数据库连接池耗尽告警
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          hikaricp_connections_active{job="fleets-app"} 
+          / 
+          hikaricp_connections_max{job="fleets-app"} > 0.9
+        for: 3m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "数据库连接池即将耗尽"
+          description: "{{ $labels.instance }} 的数据库连接池使用率为 {{ $value | humanizePercentage }}"
+
+      # WebSocket连接数异常告警
+      - alert: AbnormalWebSocketConnections
+        expr: fleets_websocket_connections{job="fleets-app"} > 10000
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "WebSocket连接数异常"
+          description: "{{ $labels.instance }} 的WebSocket连接数为 {{ $value }}，可能存在异常"
+
+      # 消息队列积压告警
+      - alert: MessageQueueBacklog
+        expr: fleets_message_queue_backlog{job="fleets-app"} > 1000
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "消息队列积压"
+          description: "{{ $labels.instance }} 的消息队列积压数为 {{ $value }}，消费速度过慢"
+
+  - name: fleets-business-alerts
+    interval: 1m
+    rules:
+      # 用户注册异常告警
+      - alert: AbnormalUserRegistration
+        expr: rate(fleets_user_register_total{job="fleets-app"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: business
+        annotations:
+          summary: "用户注册速度异常"
+          description: "用户注册速度为 {{ $value }} 次/秒，可能存在刷号行为"
+
+      # 登录失败率过高告警
+      - alert: HighLoginFailureRate
+        expr: |
+          rate(fleets_user_login_failure_total{job="fleets-app"}[5m]) 
+          / 
+          rate(fleets_user_login_total{job="fleets-app"}[5m]) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+          team: business
+        annotations:
+          summary: "登录失败率过高"
+          description: "登录失败率为 {{ $value | humanizePercentage }}，可能存在暴力破解"
