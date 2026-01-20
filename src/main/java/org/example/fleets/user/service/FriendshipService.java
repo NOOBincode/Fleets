@@ -2,7 +2,10 @@ package org.example.fleets.user.service;
 
 import org.example.fleets.common.util.PageResult;
 import org.example.fleets.user.model.dto.FriendAddDTO;
+import org.example.fleets.user.model.vo.FriendApplyVO;
 import org.example.fleets.user.model.vo.FriendVO;
+import org.example.fleets.user.model.vo.GroupingFriendVO;
+import org.example.fleets.user.model.vo.GroupingVO;
 
 import java.util.List;
 
@@ -29,7 +32,12 @@ public interface FriendshipService {
     /**
      * 获取待处理的好友请求列表
      */
-    List<FriendVO> getPendingFriendRequests(Long userId);
+    List<FriendApplyVO> getPendingFriendRequests(Long userId);
+    
+    /**
+     * 获取待处理的好友请求数量
+     */
+    Integer getPendingRequestCount(Long userId);
     
     /**
      * 删除好友
@@ -60,6 +68,16 @@ public interface FriendshipService {
      * 获取好友列表
      */
     List<FriendVO> getFriendList(Long userId);
+    
+    /**
+     * 按分组获取好友列表
+     */
+    List<GroupingFriendVO> getGroupedFriendList(Long userId);
+    
+    /**
+     * 获取用户的所有分组
+     */
+    List<GroupingVO> getUserGroups(Long userId);
     
     /**
      * 搜索好友

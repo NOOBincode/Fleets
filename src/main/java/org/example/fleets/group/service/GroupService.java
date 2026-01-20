@@ -63,4 +63,9 @@ public interface GroupService {
      * 获取用户的群组列表
      */
     PageResult<GroupVO> getUserGroups(Long userId, Integer pageNum, Integer pageSize);
+    
+    /**
+     * 获取群成员ID列表
+     */
+    java.util.List<Long> getGroupMemberIds(Long groupId);
 }

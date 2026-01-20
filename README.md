@@ -169,6 +169,32 @@ spring.datasource.password=root
 - [ ] 添加朋友圈功能
 - [ ] 完善监控和日志
 
+## 致谢
+
+### 前端框架
+本项目的前端基于 [Chatterbox](https://github.com/gmingchen/chatterbox) 项目进行适配和修改。
+
+感谢原作者 **Slipper (gmingchen)** 提供的优秀前端框架。
+
+### 开源组件
+感谢以下开源项目和社区：
+- [Spring Boot](https://spring.io/projects/spring-boot) - 后端核心框架
+- [Vue 3](https://github.com/vuejs/core) - 前端框架
+- [Element Plus](https://github.com/element-plus/element-plus) - UI 组件库
+- [MyBatis Plus](https://github.com/baomidou/mybatis-plus) - ORM 框架
+- [Sa-Token](https://github.com/dromara/sa-token) - 权限认证框架
+
+完整的开源声明和致谢请查看：
+- 前端: `fleets-web/chatterbox/ATTRIBUTION.md`
+- 许可证合规指南: `fleets-web/chatterbox/LICENSE_COMPLIANCE.md`
+
+## 免责声明
+
+1. 本项目仅供学习和研究使用
+2. 前端部分基于 Chatterbox 项目，商业使用请联系原作者获取授权
+3. 使用者需自行承担使用本项目的风险
+4. 如有侵权，请联系我们立即删除
+
 ## 许可证
 
 MIT License

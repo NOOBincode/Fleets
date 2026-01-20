@@ -1,29 +1,30 @@
 package org.example.fleets.mailbox.repository;
 
 import org.example.fleets.mailbox.model.entity.UserMailbox;
-import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Optional;
 
 /**
- * 用户信箱Repository
+ * 用户信箱Repository - 同步版本
  */
 @Repository
-public interface UserMailboxRepository extends ReactiveMongoRepository<UserMailbox, String> {
+public interface UserMailboxRepository extends MongoRepository<UserMailbox, String> {
     
     /**
      * 根据用户ID和会话ID查询信箱
      */
-    Mono<UserMailbox> findByUserIdAndConversationId(Long userId, String conversationId);
+    Optional<UserMailbox> findByUserIdAndConversationId(Long userId, String conversationId);
     
     /**
      * 根据用户ID查询所有信箱
      */
-    Flux<UserMailbox> findByUserId(Long userId);
+    List<UserMailbox> findByUserId(Long userId);
     
     /**
      * 根据用户ID和会话类型查询信箱
      */
-    Flux<UserMailbox> findByUserIdAndConversationType(Long userId, Integer conversationType);
+    List<UserMailbox> findByUserIdAndConversationType(Long userId, Integer conversationType);
 }

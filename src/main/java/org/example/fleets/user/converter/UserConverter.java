@@ -1,102 +1,62 @@
 package org.example.fleets.user.converter;
 
 import org.example.fleets.user.model.dto.UserRegisterDTO;
-import org.example.fleets.user.model.dto.UserUpdateDTO;
 import org.example.fleets.user.model.entity.User;
 import org.example.fleets.user.model.vo.UserLoginVO;
 import org.example.fleets.user.model.vo.UserVO;
-import org.springframework.beans.BeanUtils;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 
-import java.util.Date;
+import java.util.List;
 
 /**
- * 用户对象转换器
+ * 用户对象转换器 - 使用MapStruct
  * 负责 DTO/Entity/VO 之间的转换
  */
-public class UserConverter {
+@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+public interface UserConverter {
     
     /**
      * 注册DTO转Entity
      */
-    public static User toEntity(UserRegisterDTO dto, String encodedPassword) {
-        User user = new User();
-        user.setUsername(dto.getUsername());
-        user.setPassword(encodedPassword);
-        user.setNickname(dto.getNickname());
-        user.setPhone(dto.getPhone());
-        user.setEmail(dto.getEmail());
-        
-        // 设置默认值
-        user.setStatus(1);
-        user.setAvatar("");
-        user.setGender(0);
-        user.setSignature("");
-        
-        Date now = new Date();
-        user.setCreateTime(now);
-        user.setUpdateTime(now);
-        
-        return user;
-    }
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "password", ignore = true)  // 密码需要单独加密处理
+    @Mapping(target = "status", constant = "1")
+    @Mapping(target = "avatar", constant = "")
+    @Mapping(target = "gender", constant = "0")
+    @Mapping(target = "signature", constant = "")
+    @Mapping(target = "createTime", expression = "java(new java.util.Date())")
+    @Mapping(target = "updateTime", expression = "java(new java.util.Date())")
+    User toEntity(UserRegisterDTO dto);
     
     /**
      * Entity转VO（不包含敏感信息）
      */
-    public static UserVO toVO(User user) {
-        if (user == null) {
-            return null;
-        }
-        
-        UserVO vo = new UserVO();
-        BeanUtils.copyProperties(user, vo);
-        return vo;
-    }
+    UserVO toVO(User user);
+    
+    /**
+     * 批量转换
+     */
+    List<UserVO> toVOList(List<User> users);
     
     /**
      * Entity转LoginVO
      */
-    public static UserLoginVO toLoginVO(User user, String token, Long expireTime) {
-        if (user == null) {
-            return null;
-        }
-        
-        UserLoginVO vo = new UserLoginVO();
-        vo.setUserId(user.getId());
-        vo.setUsername(user.getUsername());
-        vo.setNickname(user.getNickname());
-        vo.setAvatar(user.getAvatar());
-        vo.setToken(token);
-        vo.setExpireTime(expireTime);
-        
-        return vo;
-    }
+    @Mapping(source = "user.id", target = "userId")
+    @Mapping(source = "token", target = "token")
+    @Mapping(source = "expireTime", target = "expireTime")
+    UserLoginVO toLoginVO(User user, String token, Long expireTime);
     
     /**
-     * 更新DTO应用到Entity
+     * 更新Entity（只更新非null字段）
      */
-    public static void applyUpdate(UserUpdateDTO dto, User user) {
-        if (dto.getNickname() != null) {
-            user.setNickname(dto.getNickname());
-        }
-        if (dto.getAvatar() != null) {
-            user.setAvatar(dto.getAvatar());
-        }
-        if (dto.getPhone() != null) {
-            user.setPhone(dto.getPhone());
-        }
-        if (dto.getEmail() != null) {
-            user.setEmail(dto.getEmail());
-        }
-        if (dto.getGender() != null) {
-            user.setGender(dto.getGender());
-        }
-        if (dto.getBirthDate() != null) {
-            user.setBirthDate(dto.getBirthDate());
-        }
-        if (dto.getSignature() != null) {
-            user.setSignature(dto.getSignature());
-        }
-        
-        user.setUpdateTime(new Date());
-    }
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "username", ignore = true)
+    @Mapping(target = "password", ignore = true)
+    @Mapping(target = "createTime", ignore = true)
+    @Mapping(target = "updateTime", expression = "java(new java.util.Date())")
+    void updateEntity(org.example.fleets.user.model.dto.UserUpdateDTO dto, @MappingTarget User user);
 }
+

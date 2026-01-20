@@ -79,4 +79,10 @@ public class GroupServiceImpl implements GroupService {
         // TODO: 实现获取用户的群组列表逻辑
         return null;
     }
+    
+    @Override
+    public java.util.List<Long> getGroupMemberIds(Long groupId) {
+        // TODO: 实现获取群成员ID列表逻辑
+        return null;
+    }
 }

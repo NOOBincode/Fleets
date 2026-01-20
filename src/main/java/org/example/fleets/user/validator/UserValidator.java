@@ -19,16 +19,16 @@ public class UserValidator {
     public static void validateRegister(UserRegisterDTO dto) {
         String username = dto.getUsername();
         if (username.length() < 3 || username.length() > 20) {
-            throw new BusinessException(ErrorCode.VALIDATE_FAILED.getCode(), "用户名长度必须在3-20之间");
+            throw new BusinessException(ErrorCode.VALIDATE_FAILED, "用户名长度必须在3-20之间");
         }
         
         String password = dto.getPassword();
         if (password.length() < 6) {
-            throw new BusinessException(ErrorCode.VALIDATE_FAILED.getCode(), "密码长度不能少于6位");
+            throw new BusinessException(ErrorCode.VALIDATE_FAILED, "密码长度不能少于6位");
         }
         
         if (!StringUtils.hasText(dto.getNickname())) {
-            throw new BusinessException(ErrorCode.VALIDATE_FAILED.getCode(), "昵称不能为空");
+            throw new BusinessException(ErrorCode.VALIDATE_FAILED, "昵称不能为空");
         }
     }
     
@@ -37,7 +37,7 @@ public class UserValidator {
      */
     public static void validateUpdate(UserUpdateDTO dto) {
         if (dto.getId() == null) {
-            throw new BusinessException(ErrorCode.VALIDATE_FAILED.getCode(), "用户ID不能为空");
+            throw new BusinessException(ErrorCode.VALIDATE_FAILED, "用户ID不能为空");
         }
         
         // 至少要更新一个字段
@@ -48,7 +48,7 @@ public class UserValidator {
             && dto.getGender() == null
             && dto.getBirthDate() == null
             && !StringUtils.hasText(dto.getSignature())) {
-            throw new BusinessException(ErrorCode.VALIDATE_FAILED.getCode(), "至少需要更新一个字段");
+            throw new BusinessException(ErrorCode.VALIDATE_FAILED, "至少需要更新一个字段");
         }
     }
     
@@ -57,15 +57,16 @@ public class UserValidator {
      */
     public static void validatePasswordUpdate(PasswordUpdateDTO dto) {
         if (dto.getUserId() == null) {
-            throw new BusinessException(ErrorCode.VALIDATE_FAILED.getCode(), "用户ID不能为空");
+            throw new BusinessException(ErrorCode.VALIDATE_FAILED, "用户ID不能为空");
         }
         
         if (dto.getOldPassword().equals(dto.getNewPassword())) {
-            throw new BusinessException(ErrorCode.VALIDATE_FAILED.getCode(), "新密码不能与旧密码相同");
+            throw new BusinessException(ErrorCode.VALIDATE_FAILED, "新密码不能与旧密码相同");
         }
         
         if (dto.getNewPassword().length() < 6) {
-            throw new BusinessException(ErrorCode.VALIDATE_FAILED.getCode(), "新密码长度不能少于6位");
+            throw new BusinessException(ErrorCode.VALIDATE_FAILED, "新密码长度不能少于6位");
         }
     }
 }
+

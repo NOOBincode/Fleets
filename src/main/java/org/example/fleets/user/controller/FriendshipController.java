@@ -3,7 +3,10 @@ package org.example.fleets.user.controller;
 import org.example.fleets.common.api.CommonResult;
 import org.example.fleets.common.util.PageResult;
 import org.example.fleets.user.model.dto.FriendAddDTO;
+import org.example.fleets.user.model.vo.FriendApplyVO;
 import org.example.fleets.user.model.vo.FriendVO;
+import org.example.fleets.user.model.vo.GroupingFriendVO;
+import org.example.fleets.user.model.vo.GroupingVO;
 import org.example.fleets.user.service.FriendshipService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +18,7 @@ import java.util.List;
  * 好友关系控制器
  */
 @RestController
-@RequestMapping("/api/friend")
+@RequestMapping("/api/friendship")
 public class FriendshipController {
     
     @Autowired
@@ -55,10 +58,20 @@ public class FriendshipController {
      * 获取待处理的好友请求列表
      */
     @GetMapping("/requests")
-    public CommonResult<List<FriendVO>> getPendingFriendRequests(HttpServletRequest request) {
+    public CommonResult<List<FriendApplyVO>> getPendingFriendRequests(HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
-        List<FriendVO> result = friendshipService.getPendingFriendRequests(userId);
+        List<FriendApplyVO> result = friendshipService.getPendingFriendRequests(userId);
         return CommonResult.success(result);
+    }
+    
+    /**
+     * 获取待处理的好友请求数量
+     */
+    @GetMapping("/requests/count")
+    public CommonResult<Integer> getPendingRequestCount(HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        Integer count = friendshipService.getPendingRequestCount(userId);
+        return CommonResult.success(count);
     }
     
     /**
@@ -138,6 +151,26 @@ public class FriendshipController {
             HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
         PageResult<FriendVO> result = friendshipService.searchFriend(userId, keyword, pageNum, pageSize);
+        return CommonResult.success(result);
+    }
+    
+    /**
+     * 按分组获取好友列表
+     */
+    @GetMapping("/list/grouped")
+    public CommonResult<List<GroupingFriendVO>> getGroupedFriendList(HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        List<GroupingFriendVO> result = friendshipService.getGroupedFriendList(userId);
+        return CommonResult.success(result);
+    }
+    
+    /**
+     * 获取用户的所有分组
+     */
+    @GetMapping("/groups")
+    public CommonResult<List<GroupingVO>> getUserGroups(HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        List<GroupingVO> result = friendshipService.getUserGroups(userId);
         return CommonResult.success(result);
     }
 }
