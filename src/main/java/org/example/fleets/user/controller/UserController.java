@@ -1,11 +1,11 @@
 package org.example.fleets.user.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.example.fleets.common.util.PageResult;
 import org.example.fleets.user.model.dto.*;
 import org.example.fleets.user.model.vo.UserLoginVO;
 import org.example.fleets.user.model.vo.UserVO;
 import org.example.fleets.user.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,11 +17,11 @@ import java.util.Map;
  * 用户控制器
  */
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/user")
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
 
     /**
      * 用户注册

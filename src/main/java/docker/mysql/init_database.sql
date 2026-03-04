@@ -6,13 +6,13 @@
 -- ========================================
 
 -- 删除旧数据库（如果存在）
-DROP DATABASE IF EXISTS fleets;
+DROP DATABASE IF EXISTS fleets_im_test;
 
 -- 创建数据库
-CREATE DATABASE fleets DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE fleets_im_test DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- 使用数据库
-USE fleets;
+USE fleets_im_test;
 
 -- ========================================
 -- 1. 用户表

@@ -33,7 +33,7 @@ public class RedisService {
      */
     public void set(String key, Object value, long timeout, TimeUnit unit) {
         RBucket<Object> bucket = redissonClient.getBucket(key);
-        bucket.set(value, Duration.ofMillis(unit.toMillis(timeout)));
+        bucket.set(value, timeout, unit);
     }
     
     /**
@@ -100,7 +100,7 @@ public class RedisService {
      */
     public Boolean setIfAbsent(String key, String value, long timeout, TimeUnit unit) {
         RBucket<String> bucket = redissonClient.getBucket(key);
-        return bucket.setIfAbsent(value, Duration.ofMillis(unit.toMillis(timeout)));
+        return bucket.trySet(value, timeout, unit);
     }
     
     /**

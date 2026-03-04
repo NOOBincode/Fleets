@@ -1,11 +1,12 @@
 package org.example.fleets.common.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.fleets.common.mapper.ConversationMapper;
 import org.example.fleets.common.model.Conversation;
 import org.example.fleets.common.service.ConversationService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -16,10 +17,10 @@ import java.util.List;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ConversationServiceImpl implements ConversationService {
     
-    @Autowired
-    private ConversationMapper conversationMapper;
+    private final ConversationMapper conversationMapper;
     
     @Override
     public void updateConversation(Long ownerId, Long targetId, Integer type,

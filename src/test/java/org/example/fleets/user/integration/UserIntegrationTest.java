@@ -39,7 +39,7 @@ class UserIntegrationTest {
     @DisplayName("集成测试 - 用户注册流程")
     void testUserRegistrationFlow() {
         // Given - 准备注册数据
-        testUsername = "integrationtest_" + System.currentTimeMillis();
+        testUsername = "integrationtest";
         UserRegisterDTO registerDTO = new UserRegisterDTO();
         registerDTO.setUsername(testUsername);
         registerDTO.setPassword("Test@123456");

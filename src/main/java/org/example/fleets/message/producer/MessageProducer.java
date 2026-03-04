@@ -1,7 +1,7 @@
 package org.example.fleets.message.producer;
 
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
@@ -9,10 +9,10 @@ import org.springframework.stereotype.Component;
  * 消息生产者
  */
 @Component
+@RequiredArgsConstructor
 public class MessageProducer {
     
-    @Autowired
-    private RocketMQTemplate rocketMQTemplate;
+    private final RocketMQTemplate rocketMQTemplate;
     
     /**
      * 发送消息到RocketMQ

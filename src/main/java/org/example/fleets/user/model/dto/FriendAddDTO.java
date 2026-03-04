@@ -17,9 +17,6 @@ public class FriendAddDTO {
     @Size(max = 50, message = "备注长度不能超过50")
     private String remark;
     
-    @Size(max = 20, message = "分组名称长度不能超过20")
-    private String groupName;
-    
     @Size(max = 100, message = "验证消息长度不能超过100")
     private String verifyMessage;
 }

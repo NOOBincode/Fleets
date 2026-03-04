@@ -17,8 +17,8 @@ Fleets 是一个基于 Spring Boot 的分布式即时通讯系统，支持单聊
 - **MySQL 8.0** - 关系型数据库（用户、群组、好友关系）
 - **MongoDB 4.4** - 文档数据库（消息存储）
 - **Redis 6.2** - 缓存（会话、在线状态）
-- **RocketMQ 4.9.4** - 消息队列（消息投递）
-- **OpenResty** - 网关层（鉴权、限流）
+- **RocketMQ 4.9.7** - 消息队列（消息投递，Docker Compose 一键启动）
+- **OpenResty（可选）** - 网关层（鉴权、限流，当前默认不开启）
 
 ## 核心功能
 
@@ -78,7 +78,7 @@ src/main/java/org/example/fleets/
 - Maven 3.6+
 - Docker & Docker Compose
 
-### 启动步骤
+### 启动步骤（开发环境）
 
 1. 克隆项目
 ```bash
@@ -98,14 +98,33 @@ export JWT_SECRET=your-secret-key
 export JWT_EXPIRATION=604800
 ```
 
-4. 启动应用
+4. 启动应用（默认使用 `application.properties` 配置）
 ```bash
 mvn spring-boot:run
 ```
 
 5. 访问应用
 - 应用地址：http://localhost:8080
-- RocketMQ Dashboard：http://localhost:8080
+- RocketMQ Dashboard：http://localhost:8088
+
+### 运行测试
+
+#### 单元测试 & 集成测试
+
+在项目根目录执行：
+
+```bash
+# 运行全部测试（包含单测 + 集成测试，使用 application-test.yml）
+mvn test
+
+# 只运行消息模块集成测试
+mvn -Dtest=MessageIntegrationTest test
+
+# 只运行文件模块集成测试
+mvn -Dtest=FileIntegrationTest test
+```
+
+测试环境配置位于 `src/test/resources/application-test.yml`，使用独立的测试数据库与 Redis/MongoDB 库，避免污染开发数据。
 
 ## API 文档
 
@@ -159,6 +178,18 @@ spring.datasource.url=jdbc:mysql://localhost:3306/fleets
 spring.datasource.username=root
 spring.datasource.password=root
 ```
+
+## 文档导航
+
+更多设计与实现细节请参考 `docs/` 目录（入口：`docs/README.md`），推荐阅读顺序：
+
+- `docs/SYSTEM_ARCHITECTURE.md`：整体系统架构
+- `docs/DEVELOPMENT_ROADMAP.md`：开发路线图与实现步骤
+- `docs/MAILBOX_DESIGN.md`：Mailbox 与消息存储设计
+- `docs/FRIENDSHIP_WORKFLOW.md`：好友关系与验证流程
+- `docs/TESTING_GUIDE.md`：测试策略与现有用例
+- `docs/OBSERVABILITY_QUICK_START.md`：可观测性快速启动
+- `docs/TECH_DECISIONS.md`：关键技术决策记录
 
 ## 开发计划
 

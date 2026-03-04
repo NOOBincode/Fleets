@@ -44,7 +44,7 @@ public interface MessageService {
     /**
      * 获取群聊消息历史
      */
-    PageResult<MessageVO> getGroupChatHistory(Long groupId, Integer pageNum, Integer pageSize);
+    PageResult<MessageVO> getGroupChatHistory(Long userId, Long groupId, Integer pageNum, Integer pageSize);
     
     /**
      * 搜索消息

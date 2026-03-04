@@ -1,6 +1,8 @@
 package org.example.fleets.mailbox.repository;
 
 import org.example.fleets.mailbox.model.entity.MailboxMessage;
+import org.example.fleets.mailbox.repository.custom.MailboxMessageRepositoryCustom;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
@@ -10,10 +12,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 信箱消息Repository - 同步版本
+ * 信箱消息 Repository（Spring Data 方法 + custom 条件更新）
  */
 @Repository
-public interface MailboxMessageRepository extends MongoRepository<MailboxMessage, String> {
+public interface MailboxMessageRepository extends MongoRepository<MailboxMessage, String>, MailboxMessageRepositoryCustom {
     
     /**
      * 根据用户ID和会话ID查询消息（序列号大于指定值）
@@ -38,6 +40,22 @@ public interface MailboxMessageRepository extends MongoRepository<MailboxMessage
         String conversationId, 
         Long sequence
     );
+
+    /**
+     * 根据用户ID和消息ID查询信箱消息（用于 messageId 转 conversationId+sequence）
+     */
+    Optional<MailboxMessage> findByUserIdAndMessageId(Long userId, String messageId);
+
+    /**
+     * 根据消息ID查询所有信箱消息（撤回时批量更新）
+     */
+    List<MailboxMessage> findByMessageId(String messageId);
+
+    /**
+     * 分页查询会话消息（按序列号倒序，最新在前）
+     */
+    Page<MailboxMessage> findByUserIdAndConversationIdOrderBySequenceDesc(
+        Long userId, String conversationId, Pageable pageable);
     
     /**
      * 删除过期消息

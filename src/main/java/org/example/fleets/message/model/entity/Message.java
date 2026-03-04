@@ -1,6 +1,8 @@
 package org.example.fleets.message.model.entity;
 
 import lombok.Data;
+import org.example.fleets.message.model.dto.MessageSendDTO;
+import org.example.fleets.message.model.enums.MessageStatus;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -12,6 +14,23 @@ import java.util.Date;
 @Data
 @Document(collection = "message")
 public class Message {
+
+    /**
+     * 从发送DTO构建消息（仅设置业务字段，id/sendTime 由持久层生成）
+     */
+    public static Message fromSendDTO(Long senderId, MessageSendDTO dto) {
+        Message message = new Message();
+        message.setMessageType(dto.getMessageType());
+        message.setContentType(dto.getContentType());
+        message.setSenderId(senderId);
+        message.setReceiverId(dto.getReceiverId());
+        message.setGroupId(dto.getGroupId());
+        message.setContent(dto.getContent());
+        message.setExtra(dto.getExtra());
+        message.setStatus(MessageStatus.SENT.getCode());
+        message.setSendTime(new Date());
+        return message;
+    }
     @Id
     private String id;
     

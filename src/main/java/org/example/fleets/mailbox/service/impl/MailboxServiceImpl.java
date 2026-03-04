@@ -22,9 +22,9 @@ import org.example.fleets.mailbox.service.MailboxService;
 import org.example.fleets.mailbox.service.SequenceService;
 import org.example.fleets.message.model.entity.Message;
 import org.example.fleets.message.model.vo.MessageVO;
-import org.example.fleets.message.repository.MessageRepository;
 import org.example.fleets.user.mapper.UserMapper;
 import org.example.fleets.user.model.entity.User;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -51,11 +51,15 @@ public class MailboxServiceImpl implements MailboxService {
 
     
     private static final String SEQUENCE_KEY_PREFIX = "mailbox:seq:";
-    private final MessageRepository messageRepository;
 
 
     @Override
     public boolean writeMessage(Long userId, String conversationId, Message message) {
+        return writeMessage(userId, conversationId, message, true);
+    }
+
+    @Override
+    public boolean writeMessage(Long userId, String conversationId, Message message, boolean incrementUnread) {
         // 参数校验
         Assert.notNull(userId, "用户ID不能为空");
         Assert.hasText(conversationId, "会话ID不能为空");
@@ -88,7 +92,9 @@ public class MailboxServiceImpl implements MailboxService {
             userMailbox.setSequence(sequence);
             userMailbox.setLastMessageId(message.getId());
             userMailbox.setLastMessageTime(message.getSendTime());
-            userMailbox.setUnreadCount(userMailbox.getUnreadCount() + 1);
+            if (incrementUnread) {
+                userMailbox.setUnreadCount(userMailbox.getUnreadCount() + 1);
+            }
             userMailbox.setUpdateTime(new Date());
             userMailboxRepository.save(userMailbox);
             
@@ -99,14 +105,19 @@ public class MailboxServiceImpl implements MailboxService {
                 String.format("userId:%s, sequence:%s", userId, sequence)));
             return true;
         } catch (Exception e) {
-            log.error("写入消息到信箱，userId: {}, conversationId: {}, messageId: {}",
-                    userId, conversationId, message.getId());
-            return false;
+            log.error("写入消息到信箱失败，userId: {}, conversationId: {}, messageId: {}",
+                    userId, conversationId, message.getId(), e);
+            throw new BusinessException(ErrorCode.MAILBOX_WRITE_FAILED, e);
         }
     }
     
     @Override
     public boolean batchWriteMessage(List<Long> userIds, String conversationId, Message message) {
+        return batchWriteMessage(userIds, conversationId, message, true);
+    }
+
+    @Override
+    public boolean batchWriteMessage(List<Long> userIds, String conversationId, Message message, boolean incrementUnread) {
         log.info("批量写入消息到信箱，userIds: {}, conversationId: {}, messageId: {}", 
             userIds.size(), conversationId, message.getId());
         
@@ -127,14 +138,15 @@ public class MailboxServiceImpl implements MailboxService {
                      .collect(Collectors.toList());
              mailboxMessageRepository.saveAll(mailboxMsgs);
             for (Long userId : userIds) {
-                updateMailboxMetadata(userId, conversationId, seqMap.get(userId), message);
+                updateMailboxMetadata(userId, conversationId, seqMap.get(userId), message, incrementUnread);
             }
 
             return true;
 
         } catch (Exception e) {
-            log.error("批量写入消息失败", e);
-            return false;
+            log.error("批量写入消息失败，conversationId: {}, messageId: {}, userIdsCount: {}",
+                    conversationId, message.getId(), userIds.size(), e);
+            throw new BusinessException(ErrorCode.MAILBOX_WRITE_FAILED, e);
         }
     }
     
@@ -153,14 +165,13 @@ public class MailboxServiceImpl implements MailboxService {
                 return Collections.emptyList();
             }
             List<MessageVO> result = new ArrayList<>();
-            for (UserMailbox mailbox : mailboxes) {
-                Pageable pageable = PageRequest.of(0, 100, Sort.by("sequence").ascending());
-
-            }
-        }catch (Exception e) {
-            log.error("拉取离线信息失败",e);
+            // TODO: 当前实现占位。由于 sequence 按 (userId, conversationId) 维度递增，
+            //  使用单一 lastSequence 拉取全会话离线消息在语义上不准确，后续会统一调整为按会话同步或按时间同步。
+            return result;
+        } catch (Exception e) {
+            log.error("拉取离线消息失败，userId: {}, lastSequence: {}", userId, lastSequence, e);
+            throw new BusinessException(ErrorCode.MAILBOX_READ_FAILED, e);
         }
-        return null;
     }
     
     @Override
@@ -175,7 +186,7 @@ public class MailboxServiceImpl implements MailboxService {
         try {
             UserMailbox userMailbox = userMailboxRepository.findByUserIdAndConversationId(userId, syncDTO.getConversationId()).orElse(null);
             if (userMailbox == null) {
-                log.error("信箱当前为空");
+                log.info("信箱不存在或为空，userId: {}, conversationId: {}", userId, syncDTO.getConversationId());
                 return mailboxConverter.createEmptySyncResult();
             }
             Pageable pageable = PageRequest.of(0, 100, Sort.by("sequence").ascending());
@@ -196,53 +207,47 @@ public class MailboxServiceImpl implements MailboxService {
                     messageVOs,
                     messages.size() >= 100
             );
-        }catch (Exception e){
-            log.error("增量同步消息失败", e);
-            return mailboxConverter.createEmptySyncResult();
+        } catch (Exception e) {
+            log.error("增量同步消息失败，userId: {}, conversationId: {}, fromSequence: {}",
+                    userId, syncDTO.getConversationId(), syncDTO.getFromSequence(), e);
+            throw new BusinessException(ErrorCode.MAILBOX_READ_FAILED, e);
         }
     }
     
     @Override
     public boolean markAsRead(Long userId, MarkReadDTO markReadDTO) {
-        log.info("标记消息已读，userId: {}, conversationId: {}, sequence: {}", 
-            userId, markReadDTO.getConversationId(), markReadDTO.getSequence());
-        
-        // TODO: 实现标记消息已读逻辑
-        // 1. 更新MailboxMessage状态
-        // 2. 更新UserMailbox未读数
-        // 3. 清理缓存
-        // 4. 发送已读回执（可选）
+        log.info("标记消息已读，userId: {}, conversationId: {}, sequence: {}",
+                userId, markReadDTO.getConversationId(), markReadDTO.getSequence());
+
+        Assert.notNull(userId, "用户ID不能为空");
+        Assert.hasText(markReadDTO.getConversationId(), "会话ID不能为空");
+        Assert.notNull(markReadDTO.getSequence(), "序列号不能为空");
 
         try {
-            Optional<MailboxMessage> optional = mailboxMessageRepository
-                    .findByUserIdAndConversationIdAndSequence(
-                            userId,
-                            markReadDTO.getConversationId(),
-                            markReadDTO.getSequence()
-                    );
-            if (!optional.isPresent()){
-                return false;
+            // 1. 轻量乐观锁：仅当 status=0（未读）时更新为已读，避免重复标记导致未读数多减
+            long modified = mailboxMessageRepository.markAsReadIfUnread(
+                    userId,
+                    markReadDTO.getConversationId(),
+                    markReadDTO.getSequence(),
+                    new Date()
+            );
+
+            if (modified == 0) {
+                // 消息不存在或已是已读/删除，幂等直接返回成功
+                return true;
             }
-            MailboxMessage message = optional.get();
 
-            // 2. 更新状态
-            if (message.getStatus() == 0) { // 只有未读消息才更新
-                message.setStatus(1); // 已读
-                message.setReadTime(new Date());
-                mailboxMessageRepository.save(message);
+            // 2. 只有真正从未读改为已读时，才原子减未读数
+            userMailboxRepository.decrementUnreadCountIfPositive(userId, markReadDTO.getConversationId());
 
-                // 3. 更新信箱未读数
-                decrementUnreadCount(userId, markReadDTO.getConversationId());
-
-                // 4. 清理缓存
-                clearUnreadCountCache(userId);
-            }
+            // 3. 清理未读缓存，下次读取会重新统计
+            clearUnreadCountCache(userId);
 
             return true;
         } catch (Exception e) {
             log.error("标记消息已读失败，userId: {}, conversationId: {}, sequence: {}",
-                    userId, markReadDTO.getConversationId(), markReadDTO.getSequence());
-            return false;
+                    userId, markReadDTO.getConversationId(), markReadDTO.getSequence(), e);
+            throw new BusinessException(ErrorCode.MAILBOX_READ_FAILED, e);
         }
     }
     
@@ -289,8 +294,8 @@ public class MailboxServiceImpl implements MailboxService {
             return vo;
 
         } catch (Exception e) {
-            log.error("获取未读消息数失败", e);
-            return new UnreadCountVO();
+            log.error("获取未读消息数失败，userId: {}", userId, e);
+            throw new BusinessException(ErrorCode.MAILBOX_READ_FAILED, e);
         }
     }
 
@@ -303,8 +308,8 @@ public class MailboxServiceImpl implements MailboxService {
             return (int) mailboxMessageRepository
                     .countByUserIdAndConversationIdAndStatus(userId, conversationId, 0);
         } catch (Exception e) {
-            log.error("获取会话未读数失败", e);
-            return 0;
+            log.error("获取会话未读数失败，userId: {}, conversationId: {}", userId, conversationId, e);
+            throw new BusinessException(ErrorCode.MAILBOX_READ_FAILED, e);
         }
     }
 
@@ -334,7 +339,9 @@ public class MailboxServiceImpl implements MailboxService {
                     .findByUserIdAndConversationIdAndSequence(userId, conversationId, sequence);
 
             if (!optional.isPresent()) {
-                return false;
+                log.warn("删除消息失败，消息不存在，userId: {}, conversationId: {}, sequence: {}",
+                        userId, conversationId, sequence);
+                throw new BusinessException(ErrorCode.MESSAGE_NOT_FOUND);
             }
 
             MailboxMessage message = optional.get();
@@ -344,11 +351,58 @@ public class MailboxServiceImpl implements MailboxService {
             return true;
 
         } catch (Exception e) {
-            log.error("删除消息失败", e);
-            return false;
+            log.error("删除消息失败，userId: {}, conversationId: {}, sequence: {}",
+                    userId, conversationId, sequence, e);
+            throw new BusinessException(ErrorCode.MAILBOX_READ_FAILED, e);
         }
     }
+
+    @Override
+    public boolean deleteMessageByMessageId(Long userId, String messageId) {
+        Optional<MailboxMessage> opt = mailboxMessageRepository.findByUserIdAndMessageId(userId, messageId);
+        if (!opt.isPresent()) {
+            throw new BusinessException(ErrorCode.MESSAGE_NOT_FOUND);
+        }
+        MailboxMessage msg = opt.get();
+        return deleteMessage(userId, msg.getConversationId(), msg.getSequence());
+    }
+
+    @Override
+    public boolean markAsReadByMessageId(Long userId, String messageId) {
+        Optional<MailboxMessage> opt = mailboxMessageRepository.findByUserIdAndMessageId(userId, messageId);
+        if (!opt.isPresent()) {
+            throw new BusinessException(ErrorCode.MESSAGE_NOT_FOUND);
+        }
+        MailboxMessage msg = opt.get();
+        MarkReadDTO dto = new MarkReadDTO();
+        dto.setConversationId(msg.getConversationId());
+        dto.setSequence(msg.getSequence());
+        return markAsRead(userId, dto);
+    }
+
+    @Override
+    public void recallMessageByMessageId(String messageId) {
+        List<MailboxMessage> list = mailboxMessageRepository.findByMessageId(messageId);
+        for (MailboxMessage msg : list) {
+            msg.setContent("[已撤回]");
+            mailboxMessageRepository.save(msg);
+        }
+        log.info("撤回消息完成，messageId: {}, 更新信箱条数: {}", messageId, list.size());
+    }
     
+    @Override
+    public PageResult<MessageVO> getConversationMessages(Long userId, String conversationId, int pageNum, int pageSize) {
+        Assert.notNull(userId, "用户ID不能为空");
+        Assert.hasText(conversationId, "会话ID不能为空");
+        Pageable pageable = PageRequest.of(Math.max(0, pageNum - 1), Math.max(1, Math.min(pageSize, 100)),
+                Sort.by("sequence").descending());
+        Page<MailboxMessage> page = mailboxMessageRepository
+                .findByUserIdAndConversationIdOrderBySequenceDesc(userId, conversationId, pageable);
+        List<MessageVO> list = mailboxConverter.toMessageVOList(page.getContent());
+        enrichWithSenderInfo(list);
+        return PageResult.of(page.getTotalElements(), list, pageNum, pageSize);
+    }
+
     @Override
     public Long generateSequence(Long userId, String conversationId) {
         // 使用Redis原子递增生成序列号
@@ -366,7 +420,7 @@ public class MailboxServiceImpl implements MailboxService {
     /**
      * 更新信箱元数据
      */
-    private void updateMailboxMetadata(Long userId, String conversationId, Long sequence, Message message) {
+    private void updateMailboxMetadata(Long userId, String conversationId, Long sequence, Message message, boolean incrementUnread) {
         UserMailbox mailbox = userMailboxRepository
                 .findByUserIdAndConversationId(userId, conversationId)
                 .orElseGet(() -> mailboxConverter.createNewMailbox(userId, conversationId));
@@ -374,25 +428,12 @@ public class MailboxServiceImpl implements MailboxService {
         mailbox.setSequence(sequence);
         mailbox.setLastMessageId(message.getId());
         mailbox.setLastMessageTime(message.getSendTime());
-        mailbox.setUnreadCount(mailbox.getUnreadCount() + 1);
+        if (incrementUnread) {
+            mailbox.setUnreadCount(mailbox.getUnreadCount() + 1);
+        }
         mailbox.setUpdateTime(new Date());
 
         userMailboxRepository.save(mailbox);
-    }
-
-    /**
-     * 减少未读数
-     */
-    private void decrementUnreadCount(Long userId, String conversationId) {
-        UserMailbox mailbox = userMailboxRepository
-                .findByUserIdAndConversationId(userId, conversationId)
-                .orElse(null);
-
-        if (mailbox != null && mailbox.getUnreadCount() > 0) {
-            mailbox.setUnreadCount(mailbox.getUnreadCount() - 1);
-            mailbox.setUpdateTime(new Date());
-            userMailboxRepository.save(mailbox);
-        }
     }
 
     /**

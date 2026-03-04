@@ -77,7 +77,7 @@ public interface FriendshipService {
     /**
      * 获取用户的所有分组
      */
-    List<GroupingVO> getUserGroups(Long userId);
+//    List<GroupingVO> getUserGroups(Long userId);
     
     /**
      * 搜索好友

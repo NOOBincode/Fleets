@@ -22,10 +22,7 @@ public class Friendship {
     
     // 好友备注
     private String remark;
-    
-    // 好友分组
-    @TableField("group_name")
-    private String groupName;
+
     
     // 关系状态：0-待确认 1-已确认 2-已拒绝 3-已拉黑
     private Integer status;

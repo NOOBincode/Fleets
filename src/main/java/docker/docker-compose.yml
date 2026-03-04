@@ -63,15 +63,15 @@ services:
       timeout: 5s
       retries: 3
 
-  # RocketMQ NameServer
+  # RocketMQ NameServer（4.9.7 对 Docker 支持更好，避免 4.9.4 常见启动/路径问题）
   rocketmq-namesrv:
-    image: apache/rocketmq:4.9.4
+    image: apache/rocketmq:4.9.7
     container_name: fleets-rocketmq-namesrv
     restart: always
     ports:
       - "9876:9876"
     volumes:
-      - rocketmq_namesrv_logs:/home/rocketmq/logs
+      - rocketmq_namesrv_logs:/root/rocketmq/logs
     environment:
       JAVA_OPT_EXT: "-Xms512m -Xmx512m"
     command: sh mqnamesrv
@@ -83,31 +83,39 @@ services:
       timeout: 5s
       retries: 3
 
-  # RocketMQ Broker
+  # RocketMQ Broker（与 NameServer 同版本 4.9.7，兼容 4.9.4 客户端）
   rocketmq-broker:
-    image: apache/rocketmq:4.9.4
+    image: apache/rocketmq:4.9.7
     container_name: fleets-rocketmq-broker
     restart: always
     ports:
       - "10909:10909"
       - "10911:10911"
     volumes:
-      - rocketmq_broker_logs:/home/rocketmq/logs
-      - rocketmq_broker_store:/home/rocketmq/store
+      - rocketmq_broker_logs:/root/rocketmq/logs
+      - rocketmq_broker_store:/root/rocketmq/store
+      # 镜像默认以 rocketmq 用户运行，挂到 /root 下会无权限读取；挂到 ROCKETMQ_HOME/conf 下即可
+      - ./rocketmq/broker.conf:/home/rocketmq/rocketmq-4.9.7/conf/broker.conf
     environment:
       NAMESRV_ADDR: "rocketmq-namesrv:9876"
-      JAVA_OPT_EXT: "-Xms512m -Xmx512m"
-    command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/rocketmq-4.9.4/conf/broker.conf
+      JAVA_OPT_EXT: "-Xms1g -Xmx1g -XX:+UseG1GC"
+      # 方案 A：让 Broker 注册成 127.0.0.1:10911（宿主机本地集成测试可直连）
+      BROKER_IP: "127.0.0.1"
+    command: ["sh", "mqbroker", "-n", "rocketmq-namesrv:9876", "-c", "/home/rocketmq/rocketmq-4.9.7/conf/broker.conf"]
     depends_on:
       rocketmq-namesrv:
         condition: service_healthy
     networks:
       - fleets_network
+    # 给容器分配足够内存，避免 OOM 导致 3 秒内被系统杀进程（docker compose up 下生效）
+    mem_limit: 2g
+    mem_reservation: 1g
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 10911 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # RocketMQ Dashboard (Web管理界面)
   # 使用 styletang 维护的镜像，更稳定且易于拉取

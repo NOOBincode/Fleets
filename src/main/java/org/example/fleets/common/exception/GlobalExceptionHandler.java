@@ -3,6 +3,7 @@ package org.example.fleets.common.exception;
 import cn.dev33.satoken.exception.NotLoginException;
 import lombok.extern.slf4j.Slf4j;
 import org.example.fleets.common.api.CommonResult;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -50,6 +51,15 @@ public class GlobalExceptionHandler {
         return CommonResult.failed(ErrorCode.VALIDATE_FAILED.getCode(), errors);
     }
     
+    /**
+     * 处理请求体 JSON 解析失败（格式错误、多余逗号、缺少字段值等）
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public CommonResult<?> handleHttpMessageNotReadable(HttpMessageNotReadableException e, HttpServletRequest request) {
+        log.warn("请求体 JSON 格式错误 [{}]: {}", request.getRequestURI(), e.getMessage());
+        return CommonResult.failed(ErrorCode.VALIDATE_FAILED.getCode(), "请求体 JSON 格式不正确，请检查（如多余逗号、缺少字段值等）");
+    }
+
     /**
      * 处理参数绑定异常
      */

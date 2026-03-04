@@ -17,44 +17,53 @@ import org.springframework.stereotype.Controller;
 public class WebSocketController {
     
     private final UserOnlineService userOnlineService;
-    
     /**
      * 心跳检测
      * 客户端发送: /app/heartbeat
-     * TODO: 实现心跳处理
      */
     @MessageMapping("/heartbeat")
     public void heartbeat(SimpMessageHeaderAccessor headerAccessor) {
-        // TODO: 从 headerAccessor 获取 userId
-        // TODO: 调用 userOnlineService.refreshOnlineStatus()
-        
-        log.debug("收到心跳");
+        Long userId = resolveUserId(headerAccessor);
+        if (userId == null) {
+            log.warn("心跳请求无法解析 userId");
+            return;
+        }
+        userOnlineService.refreshOnlineStatus(userId);
+        log.debug("收到心跳: userId={}", userId);
+    }
+
+    /**
+     * 从 STOMP 会话中解析当前用户 ID（Principal.name 即 userId）
+     */
+    private Long resolveUserId(SimpMessageHeaderAccessor headerAccessor) {
+        if (headerAccessor == null) {
+            return null;
+        }
+        java.security.Principal principal = headerAccessor.getUser();
+        if (principal == null || !principal.getName().matches("\\d+")) {
+            return null;
+        }
+        return Long.parseLong(principal.getName());
     }
     
     /**
-     * 客户端发送消息（可选，也可以直接用 HTTP API）
+     * 客户端发送消息（可选，通常用 HTTP API 发消息）
      * 客户端发送: /app/send
-     * TODO: 实现客户端消息处理（可选）
      */
     @MessageMapping("/send")
     public void sendMessage(@Payload String message, SimpMessageHeaderAccessor headerAccessor) {
-        // TODO: 获取 userId
-        // TODO: 处理消息（通常建议使用 HTTP API 发送消息）
-        
-        log.info("收到客户端消息: {}", message);
+        Long userId = resolveUserId(headerAccessor);
+        log.info("收到客户端消息: userId={}, message={}", userId, message);
     }
     
     /**
      * 输入状态通知（正在输入...）
      * 客户端发送: /app/typing
-     * TODO: 实现输入状态广播（可选）
      */
     @MessageMapping("/typing")
     public void typing(@Payload TypingMessage typingMessage, SimpMessageHeaderAccessor headerAccessor) {
-        // TODO: 获取 userId
-        // TODO: 广播给对方用户
-        
-        log.debug("用户正在输入: conversationId={}", typingMessage.getConversationId());
+        Long userId = resolveUserId(headerAccessor);
+        log.debug("用户正在输入: userId={}, conversationId={}", userId, typingMessage != null ? typingMessage.getConversationId() : null);
     }
     
     /**

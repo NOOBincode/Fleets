@@ -1,0 +1,1891 @@
+{
+	"info": {
+		"_postman_id": "fleets-complete-api-tests",
+		"name": "Fleets Complete API Tests",
+		"description": "Complete test suite for all Fleets backend APIs including User, Friendship, Message, Group, File, Expression, and Mailbox modules",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "User Module",
+			"item": [
+				{
+					"name": "1.1 User Registration",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has id\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.id).to.exist;",
+									"    pm.collectionVariables.set(\"userId\", jsonData.id);",
+									"    pm.collectionVariables.set(\"username\", jsonData.username);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"testuser{{$timestamp}}\",\n  \"password\": \"Test123456\",\n  \"phone\": \"138{{$timestamp}}\",\n  \"email\": \"test{{$timestamp}}@example.com\",\n  \"nickname\": \"测试用户\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "register"]
+						}
+					}
+				}
+,
+				{
+					"name": "1.2 User Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has token\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.token).to.exist;",
+									"    pm.collectionVariables.set(\"token\", jsonData.token);",
+									"    pm.collectionVariables.set(\"userId\", jsonData.userId);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"Test123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "login"]
+						}
+					}
+				},
+				{
+					"name": "1.3 Get User Info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has user data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.id).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/user/{{userId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "{{userId}}"]
+						}
+					}
+				},
+				{
+					"name": "1.4 Update User Info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": {{userId}},\n  \"nickname\": \"更新后的昵称\",\n  \"gender\": 1,\n  \"birthday\": \"1990-01-01\",\n  \"signature\": \"这是我的个性签名\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/update",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "update"]
+						}
+					}
+				},
+				{
+					"name": "1.5 Update Password",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": {{userId}},\n  \"oldPassword\": \"Test123456\",\n  \"newPassword\": \"NewTest123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "password"]
+						}
+					}
+				},
+				{
+					"name": "1.6 Check Username Exists",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/user/check/username/{{username}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "check", "username", "{{username}}"]
+						}
+					}
+				},
+				{
+					"name": "1.7 Get User List",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"\",\n  \"nickname\": \"\",\n  \"status\": null\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/list?pageNum=1&pageSize=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "list"],
+							"query": [
+								{
+									"key": "pageNum",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "1.8 User Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/user/logout?userId={{userId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "logout"],
+							"query": [
+								{
+									"key": "userId",
+									"value": "{{userId}}"
+								}
+							]
+						}
+					}
+				}
+			]
+		}
+,
+		{
+			"name": "Friendship Module",
+			"item": [
+				{
+					"name": "2.1 Add Friend (Send Request)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"friendId\": {{friendId}},\n  \"remark\": \"我的好友\",\n  \"grouping\": \"同事\",\n  \"verifyMessage\": \"你好，我想加你为好友\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/friendship/add",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "add"]
+						}
+					}
+				},
+				{
+					"name": "2.2 Get Pending Friend Requests",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/friendship/requests",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "requests"]
+						}
+					}
+				},
+				{
+					"name": "2.3 Get Pending Request Count",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/friendship/requests/count",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "requests", "count"]
+						}
+					}
+				},
+				{
+					"name": "2.4 Accept Friend Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/friendship/accept/{{friendId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "accept", "{{friendId}}"]
+						}
+					}
+				},
+				{
+					"name": "2.5 Reject Friend Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/friendship/reject/{{friendId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "reject", "{{friendId}}"]
+						}
+					}
+				},
+				{
+					"name": "2.6 Get Friend List",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/friendship/list",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "list"]
+						}
+					}
+				},
+				{
+					"name": "2.7 Get Grouped Friend List",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/friendship/list/grouped",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "list", "grouped"]
+						}
+					}
+				},
+				{
+					"name": "2.8 Get User Groups",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/friendship/groups",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "groups"]
+						}
+					}
+				},
+				{
+					"name": "2.9 Search Friend",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/friendship/search?keyword=test&pageNum=1&pageSize=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "search"],
+							"query": [
+								{
+									"key": "keyword",
+									"value": "test"
+								},
+								{
+									"key": "pageNum",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "2.10 Update Friend Remark",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"remark\": \"新的备注名\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/friendship/{{friendId}}/remark",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "{{friendId}}", "remark"]
+						}
+					}
+				},
+				{
+					"name": "2.11 Update Friend Group",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"grouping\": \"家人\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/friendship/{{friendId}}/group",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "{{friendId}}", "group"]
+						}
+					}
+				},
+				{
+					"name": "2.12 Block Friend",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/friendship/block/{{friendId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "block", "{{friendId}}"]
+						}
+					}
+				},
+				{
+					"name": "2.13 Unblock Friend",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/friendship/unblock/{{friendId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "unblock", "{{friendId}}"]
+						}
+					}
+				},
+				{
+					"name": "2.14 Delete Friend",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/friendship/{{friendId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "friendship", "{{friendId}}"]
+						}
+					}
+				}
+			]
+		}
+,
+		{
+			"name": "Message Module",
+			"item": [
+				{
+					"name": "3.1 Send Message",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has message data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.id).to.exist;",
+									"    pm.collectionVariables.set(\"messageId\", jsonData.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"receiverId\": {{friendId}},\n  \"content\": \"你好，这是一条测试消息\",\n  \"messageType\": \"TEXT\",\n  \"conversationType\": \"PRIVATE\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/message/send",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "send"]
+						}
+					}
+				},
+				{
+					"name": "3.2 Get Chat History",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has pagination\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.records).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/message/chat/{{friendId}}?pageNum=1&pageSize=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "chat", "{{friendId}}"],
+							"query": [
+								{
+									"key": "pageNum",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "3.3 Get Group Chat History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/message/group/{{groupId}}?pageNum=1&pageSize=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "group", "{{groupId}}"],
+							"query": [
+								{
+									"key": "pageNum",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "3.4 Mark Message as Read",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/message/read/{{messageId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "read", "{{messageId}}"]
+						}
+					}
+				},
+				{
+					"name": "3.5 Batch Mark as Read",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[\"{{messageId}}\"]"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/message/read/batch",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "read", "batch"]
+						}
+					}
+				},
+				{
+					"name": "3.6 Recall Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/message/recall/{{messageId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "recall", "{{messageId}}"]
+						}
+					}
+				},
+				{
+					"name": "3.7 Delete Message",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/message/{{messageId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "{{messageId}}"]
+						}
+					}
+				},
+				{
+					"name": "3.8 Search Message",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/message/search?keyword=测试&pageNum=1&pageSize=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "search"],
+							"query": [
+								{
+									"key": "keyword",
+									"value": "测试"
+								},
+								{
+									"key": "pageNum",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								}
+							]
+						}
+					}
+				}
+			]
+		}
+,
+		{
+			"name": "Message Sync Module",
+			"item": [
+				{
+					"name": "4.1 Pull Offline Messages",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/message/sync/pull?lastSequence=0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "sync", "pull"],
+							"query": [
+								{
+									"key": "lastSequence",
+									"value": "0"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "4.2 Get Sync Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/message/sync/info",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "sync", "info"]
+						}
+					}
+				},
+				{
+					"name": "4.3 Update Sequence",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/message/sync/update-sequence?sequence=100",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "sync", "update-sequence"],
+							"query": [
+								{
+									"key": "sequence",
+									"value": "100"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Message Ack Module",
+			"item": [
+				{
+					"name": "5.1 Delivered Ack",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/message/ack/delivered/{{messageId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "ack", "delivered", "{{messageId}}"]
+						}
+					}
+				},
+				{
+					"name": "5.2 Read Ack",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/message/ack/read/{{messageId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "ack", "read", "{{messageId}}"]
+						}
+					}
+				},
+				{
+					"name": "5.3 Batch Read Ack",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[\"{{messageId}}\"]"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/message/ack/read/batch",
+							"host": ["{{base_url}}"],
+							"path": ["api", "message", "ack", "read", "batch"]
+						}
+					}
+				}
+			]
+		}
+,
+		{
+			"name": "Group Module",
+			"item": [
+				{
+					"name": "6.1 Create Group",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has group data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.id).to.exist;",
+									"    pm.collectionVariables.set(\"groupId\", jsonData.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"groupName\": \"测试群组\",\n  \"avatar\": \"https://example.com/avatar.jpg\",\n  \"description\": \"这是一个测试群组\",\n  \"announcement\": \"欢迎加入测试群组\",\n  \"maxMembers\": 200,\n  \"joinType\": 0,\n  \"memberIds\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/group/create",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "create"]
+						}
+					}
+				},
+				{
+					"name": "6.2 Get Group Info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has group data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.id).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/group/{{groupId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "{{groupId}}"]
+						}
+					}
+				},
+				{
+					"name": "6.3 Get User Groups",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has pagination\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.records).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/group/list?pageNum=1&pageSize=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "list"],
+							"query": [
+								{
+									"key": "pageNum",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "6.4 Update Group Info",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"groupName\": \"更新后的群名\",\n  \"description\": \"更新后的描述\",\n  \"announcement\": \"更新后的公告\",\n  \"maxMembers\": 300,\n  \"joinType\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/group/{{groupId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "{{groupId}}"]
+						}
+					}
+				},
+				{
+					"name": "6.5 Join Group",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/group/{{groupId}}/join",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "{{groupId}}", "join"]
+						}
+					}
+				},
+				{
+					"name": "6.6 Quit Group",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/group/{{groupId}}/quit",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "{{groupId}}", "quit"]
+						}
+					}
+				},
+				{
+					"name": "6.7 Get Group Member IDs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/group/{{groupId}}/members",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "{{groupId}}", "members"]
+						}
+					}
+				},
+				{
+					"name": "6.8 Kick Member",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/group/{{groupId}}/kick/{{targetUserId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "{{groupId}}", "kick", "{{targetUserId}}"]
+						}
+					}
+				},
+				{
+					"name": "6.9 Set Admin",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetUserId\": {{targetUserId}},\n  \"isAdmin\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/group/{{groupId}}/admin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "{{groupId}}", "admin"]
+						}
+					}
+				},
+				{
+					"name": "6.10 Mute Member",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetUserId\": {{targetUserId}},\n  \"muteMinutes\": 60\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/group/{{groupId}}/mute",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "{{groupId}}", "mute"]
+						}
+					}
+				},
+				{
+					"name": "6.11 Transfer Owner",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"newOwnerId\": {{targetUserId}}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/group/{{groupId}}/transfer",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "{{groupId}}", "transfer"]
+						}
+					}
+				},
+				{
+					"name": "6.12 Dismiss Group",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/group/{{groupId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "group", "{{groupId}}"]
+						}
+					}
+				}
+			]
+		}
+,
+		{
+			"name": "File Module",
+			"item": [
+				{
+					"name": "7.1 Upload File",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has file URL\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.url).to.exist;",
+									"    pm.collectionVariables.set(\"fileUrl\", jsonData.url);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "fileType",
+									"value": "IMAGE",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/file/upload",
+							"host": ["{{base_url}}"],
+							"path": ["api", "file", "upload"]
+						}
+					}
+				},
+				{
+					"name": "7.2 Get File Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/file/{{fileId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "file", "{{fileId}}"]
+						}
+					}
+				},
+				{
+					"name": "7.3 Delete File",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/file/{{fileId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "file", "{{fileId}}"]
+						}
+					}
+				},
+				{
+					"name": "7.4 Get User Files",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/file/list?pageNum=1&pageSize=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "file", "list"],
+							"query": [
+								{
+									"key": "pageNum",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "20"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Expression Module",
+			"item": [
+				{
+					"name": "8.1 Upload Expression",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has expression data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.id).to.exist;",
+									"    pm.collectionVariables.set(\"expressionId\", jsonData.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "name",
+									"value": "测试表情",
+									"type": "text"
+								},
+								{
+									"key": "category",
+									"value": "自定义",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/expression/upload",
+							"host": ["{{base_url}}"],
+							"path": ["api", "expression", "upload"]
+						}
+					}
+				},
+				{
+					"name": "8.2 Get User Expressions",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/expression/list",
+							"host": ["{{base_url}}"],
+							"path": ["api", "expression", "list"]
+						}
+					}
+				},
+				{
+					"name": "8.3 Get Expressions by Category",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/expression/category/自定义",
+							"host": ["{{base_url}}"],
+							"path": ["api", "expression", "category", "自定义"]
+						}
+					}
+				},
+				{
+					"name": "8.4 Delete Expression",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/expression/{{expressionId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "expression", "{{expressionId}}"]
+						}
+					}
+				}
+			]
+		}
+,
+		{
+			"name": "Mailbox Module",
+			"item": [
+				{
+					"name": "9.1 Sync Messages",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has sync result\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.messages).to.be.an('array');",
+									"    pm.expect(jsonData.currentSequence).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"lastSequence\": 0,\n  \"limit\": 100\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/mailbox/sync",
+							"host": ["{{base_url}}"],
+							"path": ["api", "mailbox", "sync"]
+						}
+					}
+				},
+				{
+					"name": "9.2 Mark Messages as Read",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"messageIds\": [\"{{messageId}}\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/mailbox/mark-read",
+							"host": ["{{base_url}}"],
+							"path": ["api", "mailbox", "mark-read"]
+						}
+					}
+				},
+				{
+					"name": "9.3 Get Unread Count",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has unread count\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.totalUnread).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/mailbox/unread-count",
+							"host": ["{{base_url}}"],
+							"path": ["api", "mailbox", "unread-count"]
+						}
+					}
+				},
+				{
+					"name": "9.4 Get Current Sequence",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/mailbox/current-sequence",
+							"host": ["{{base_url}}"],
+							"path": ["api", "mailbox", "current-sequence"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Conversation Module",
+			"item": [
+				{
+					"name": "10.1 Get Conversation List",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/conversation/list",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversation", "list"]
+						}
+					}
+				},
+				{
+					"name": "10.2 Get Conversation Detail",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/conversation/{{conversationId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversation", "{{conversationId}}"]
+						}
+					}
+				},
+				{
+					"name": "10.3 Delete Conversation",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/conversation/{{conversationId}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversation", "{{conversationId}}"]
+						}
+					}
+				},
+				{
+					"name": "10.4 Pin Conversation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/conversation/{{conversationId}}/pin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversation", "{{conversationId}}", "pin"]
+						}
+					}
+				},
+				{
+					"name": "10.5 Unpin Conversation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/conversation/{{conversationId}}/unpin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversation", "{{conversationId}}", "unpin"]
+						}
+					}
+				},
+				{
+					"name": "10.6 Mute Conversation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/conversation/{{conversationId}}/mute",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversation", "{{conversationId}}", "mute"]
+						}
+					}
+				},
+				{
+					"name": "10.7 Unmute Conversation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/conversation/{{conversationId}}/unmute",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversation", "{{conversationId}}", "unmute"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "friendId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "groupId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "messageId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "conversationId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "fileId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "fileUrl",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "expressionId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "targetUserId",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

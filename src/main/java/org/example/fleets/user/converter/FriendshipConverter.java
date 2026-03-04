@@ -20,7 +20,6 @@ public interface FriendshipConverter {
     @Mapping(source = "friendship.userId", target = "userId")
     @Mapping(source = "friendship.friendId", target = "friendId")
     @Mapping(source = "friendship.remark", target = "remark")
-    @Mapping(source = "friendship.groupName", target = "groupName")
     @Mapping(source = "friendship.status", target = "status")
     @Mapping(source = "friendship.createTime", target = "createTime")
     FriendVO toVO(Friendship friendship);

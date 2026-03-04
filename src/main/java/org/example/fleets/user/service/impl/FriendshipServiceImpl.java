@@ -111,17 +111,15 @@ public class FriendshipServiceImpl implements FriendshipService {
             Friendship senderFriendship = createFriendship(
                 userId, 
                 addDTO.getFriendId(), 
-                addDTO.getRemark(), 
-                addDTO.getGroupName(), 
+                addDTO.getRemark(),
                 0,  // 待确认
                 now
             );
             
             Friendship receiverFriendship = createFriendship(
                 addDTO.getFriendId(), 
-                userId, 
+                userId,
                 null,  // 对方备注为空
-                "我的好友",  // 默认分组
                 0,  // 待确认
                 now
             );
@@ -363,8 +361,7 @@ public class FriendshipServiceImpl implements FriendshipService {
             if (friendship == null) {
                 throw new BusinessException(ErrorCode.VALIDATE_FAILED, "好友关系不存在");
             }
-            
-            friendship.setGroupName(groupName);
+
             friendship.setUpdateTime(new Date());
             
             int result = friendshipMapper.updateById(friendship);
@@ -428,7 +425,6 @@ public class FriendshipServiceImpl implements FriendshipService {
                     vo.setUserId(friendship.getUserId());
                     vo.setFriendId(friendship.getFriendId());
                     vo.setRemark(friendship.getRemark());
-                    vo.setGroupName(friendship.getGroupName());
                     vo.setStatus(friendship.getStatus());
                     vo.setCreateTime(friendship.getCreateTime());
                     
@@ -530,7 +526,6 @@ public class FriendshipServiceImpl implements FriendshipService {
                     vo.setFriendNickname(user.getNickname());
                     vo.setFriendAvatar(user.getAvatar());
                     vo.setRemark(friendship.getRemark());
-                    vo.setGroupName(friendship.getGroupName());
                     vo.setStatus(friendship.getStatus());
                     vo.setCreateTime(friendship.getCreateTime());
                     vo.setIsOnline(false); // TODO: 查询在线状态
@@ -762,12 +757,11 @@ public class FriendshipServiceImpl implements FriendshipService {
      * 创建好友关系对象（封装重复代码）
      */
     private Friendship createFriendship(Long userId, Long friendId, String remark, 
-                                       String groupName, Integer status, Date now) {
+                                        Integer status, Date now) {
         Friendship friendship = new Friendship();
         friendship.setUserId(userId);
         friendship.setFriendId(friendId);
         friendship.setRemark(remark);
-        friendship.setGroupName(groupName);
         friendship.setStatus(status);
         friendship.setCreateTime(now);
         friendship.setUpdateTime(now);
@@ -855,50 +849,50 @@ public class FriendshipServiceImpl implements FriendshipService {
     /**
      * 获取用户的所有分组
      */
-    @Override
-    public List<GroupingVO> getUserGroups(Long userId) {
-        log.info("获取用户的所有分组，userId: {}", userId);
-        
-        try {
-            // 查询所有好友关系
-            LambdaQueryWrapper<Friendship> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(Friendship::getUserId, userId)
-                   .eq(Friendship::getStatus, 1)
-                   .eq(Friendship::getIsDeleted, 0);
-            
-            List<Friendship> friendships = friendshipMapper.selectList(wrapper);
-            
-            // 统计每个分组的数量
-            Map<String, Long> groupCountMap = friendships.stream()
-                    .collect(Collectors.groupingBy(
-                            friendship -> StringUtils.hasText(friendship.getGroupName()) 
-                                    ? friendship.getGroupName() 
-                                    : "我的好友",
-                            Collectors.counting()
-                    ));
-            
-            // 转换为VO列表
-            List<GroupingVO> result = new ArrayList<>();
-            groupCountMap.forEach((groupName, count) -> {
-                GroupingVO vo = new GroupingVO();
-                vo.setGroupName(groupName);
-                vo.setCount(count.intValue());
-                result.add(vo);
-            });
-            
-            // 按分组名称排序
-            result.sort((a, b) -> {
-                if ("我的好友".equals(a.getGroupName())) return -1;
-                if ("我的好友".equals(b.getGroupName())) return 1;
-                return a.getGroupName().compareTo(b.getGroupName());
-            });
-            
-            return result;
-            
-        } catch (Exception e) {
-            log.error("获取用户分组异常，userId: {}", userId, e);
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "获取分组列表失败");
-        }
-    }
+//    @Override
+//    public List<GroupingVO> getUserGroups(Long userId) {
+//        log.info("获取用户的所有分组，userId: {}", userId);
+//
+//        try {
+//            // 查询所有好友关系
+//            LambdaQueryWrapper<Friendship> wrapper = new LambdaQueryWrapper<>();
+//            wrapper.eq(Friendship::getUserId, userId)
+//                   .eq(Friendship::getStatus, 1)
+//                   .eq(Friendship::getIsDeleted, 0);
+//
+//            List<Friendship> friendships = friendshipMapper.selectList(wrapper);
+//
+//            // 统计每个分组的数量
+//            Map<String, Long> groupCountMap = friendships.stream()
+//                    .collect(Collectors.groupingBy(
+//                            friendship -> StringUtils.hasText(friendship.getGroupName())
+//                                    ? friendship.getGroupName()
+//                                    : "我的好友",
+//                            Collectors.counting()
+//                    ));
+//
+//            // 转换为VO列表
+//            List<GroupingVO> result = new ArrayList<>();
+//            groupCountMap.forEach((groupName, count) -> {
+//                GroupingVO vo = new GroupingVO();
+//                vo.setGroupName(groupName);
+//                vo.setCount(count.intValue());
+//                result.add(vo);
+//            });
+//
+//            // 按分组名称排序
+//            result.sort((a, b) -> {
+//                if ("我的好友".equals(a.getGroupName())) return -1;
+//                if ("我的好友".equals(b.getGroupName())) return 1;
+//                return a.getGroupName().compareTo(b.getGroupName());
+//            });
+//
+//            return result;
+//
+//        } catch (Exception e) {
+//            log.error("获取用户分组异常，userId: {}", userId, e);
+//            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "获取分组列表失败");
+//        }
+//    }
 }
 

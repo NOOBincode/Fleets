@@ -1,12 +1,12 @@
 package org.example.fleets.message.controller;
 
+import lombok.RequiredArgsConstructor;
+import cn.dev33.satoken.stp.StpUtil;
 import org.example.fleets.common.api.CommonResult;
 import org.example.fleets.message.model.vo.MessageVO;
 import org.example.fleets.message.service.MessageSyncService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,10 +16,10 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/message/sync")
+@RequiredArgsConstructor
 public class MessageSyncController {
     
-    @Autowired
-    private MessageSyncService messageSyncService;
+    private final MessageSyncService messageSyncService;
     
     /**
      * 拉取离线消息
@@ -27,10 +27,9 @@ public class MessageSyncController {
     @GetMapping("/pull")
     public CommonResult<List<MessageVO>> pullOfflineMessages(
             @RequestParam(required = false, defaultValue = "0") Long lastSequence,
-            @RequestParam(required = false, defaultValue = "100") Integer limit,
-            HttpServletRequest request) {
+            @RequestParam(required = false, defaultValue = "100") Integer limit) {
         
-        Long userId = (Long) request.getAttribute("userId");
+        Long userId = StpUtil.getLoginIdAsLong();
         List<MessageVO> messages = messageSyncService.pullOfflineMessages(userId, lastSequence, limit);
         return CommonResult.success(messages);
     }
@@ -39,8 +38,8 @@ public class MessageSyncController {
      * 获取同步信息（最后序列号、未读数等）
      */
     @GetMapping("/info")
-    public CommonResult<Map<String, Object>> getSyncInfo(HttpServletRequest request) {
-        Long userId = (Long) request.getAttribute("userId");
+    public CommonResult<Map<String, Object>> getSyncInfo() {
+        Long userId = StpUtil.getLoginIdAsLong();
         
         Map<String, Object> info = new HashMap<>();
         info.put("lastSequence", messageSyncService.getLastSequence(userId));
@@ -53,11 +52,8 @@ public class MessageSyncController {
      * 更新同步序列号
      */
     @PostMapping("/update-sequence")
-    public CommonResult<Boolean> updateSequence(
-            @RequestParam Long sequence,
-            HttpServletRequest request) {
-        
-        Long userId = (Long) request.getAttribute("userId");
+    public CommonResult<Boolean> updateSequence(@RequestParam Long sequence) {
+        Long userId = StpUtil.getLoginIdAsLong();
         messageSyncService.updateLastSequence(userId, sequence);
         return CommonResult.success(true);
     }

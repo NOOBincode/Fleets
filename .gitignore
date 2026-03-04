@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+docker/observability/
+graduation-thesis/
+logs/
+upload/

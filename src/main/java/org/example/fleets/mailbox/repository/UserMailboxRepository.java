@@ -1,6 +1,7 @@
 package org.example.fleets.mailbox.repository;
 
 import org.example.fleets.mailbox.model.entity.UserMailbox;
+import org.example.fleets.mailbox.repository.custom.UserMailboxRepositoryCustom;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
@@ -8,10 +9,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 用户信箱Repository - 同步版本
+ * 用户信箱 Repository（Spring Data 方法 + custom 原子更新）
  */
 @Repository
-public interface UserMailboxRepository extends MongoRepository<UserMailbox, String> {
+public interface UserMailboxRepository extends MongoRepository<UserMailbox, String>, UserMailboxRepositoryCustom {
     
     /**
      * 根据用户ID和会话ID查询信箱

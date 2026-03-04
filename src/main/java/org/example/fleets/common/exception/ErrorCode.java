@@ -37,6 +37,7 @@ public enum ErrorCode {
     MESSAGE_CONTENT_TOO_LONG(4005, "消息内容过长"),
     NOT_FRIEND_CANNOT_SEND(4006, "不是好友，无法发送消息"),
     INVALID_MESSAGE_TYPE(4007, "无效的消息类型"),
+    MESSAGE_CANNOT_RECALL(4008, "只能撤回自己发送的消息"),
     
     // 信箱模块 5xxx
     MAILBOX_WRITE_FAILED(5001, "信箱写入失败"),
@@ -47,6 +48,12 @@ public enum ErrorCode {
     GROUP_NOT_FOUND(6001, "群组不存在"),
     NOT_GROUP_MEMBER(6002, "不是群成员"),
     GROUP_FULL(6003, "群组人数已满"),
+    GROUP_DISMISSED(6004, "群组已解散"),
+    ALREADY_IN_GROUP(6005, "已经是群成员"),
+    OWNER_CANNOT_QUIT(6006, "群主不能退出群组"),
+    CANNOT_KICK_OWNER(6007, "不能踢出群主"),
+    CANNOT_MUTE_OWNER(6008, "不能禁言群主"),
+    NO_PERMISSION(6009, "没有权限"),
     
     // WebSocket 模块 7xxx
     WEBSOCKET_AUTH_FAILED(7001, "WebSocket 认证失败"),

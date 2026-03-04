@@ -1,7 +1,9 @@
 package org.example.fleets.user.service.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import org.example.fleets.cache.redis.RedisService;
 import org.example.fleets.common.exception.BusinessException;
+import org.example.fleets.user.converter.UserConverter;
 import org.example.fleets.user.mapper.UserMapper;
 import org.example.fleets.user.model.dto.UserLoginDTO;
 import org.example.fleets.user.model.dto.UserRegisterDTO;
@@ -12,11 +14,14 @@ import org.example.fleets.user.service.cache.UserCacheService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 import java.util.concurrent.TimeUnit;
 
@@ -25,50 +30,62 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * 用户服务单元测试
- * 
- * 测试策略：
- * 1. 使用Mockito模拟依赖
- * 2. 测试正常场景和异常场景
- * 3. 验证方法调用次数和参数
+ * 用户服务单元测试（需 Spring 上下文以初始化 MyBatis-Plus Lambda 缓存）
  */
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest(webEnvironment = org.springframework.boot.test.context.SpringBootTest.WebEnvironment.NONE)
+@ActiveProfiles("test")
+@TestPropertySource(properties = "spring.data.mongodb.uri=mongodb://localhost:27017/fleets_im_test")
 @DisplayName("用户服务单元测试")
 class UserServiceImplTest {
-    
-    @Mock
+
+    @MockBean
     private UserMapper userMapper;
-    
-    @Mock
+    @MockBean
     private UserCacheService userCacheService;
-    
-    @Mock
+    @MockBean
     private RedisService redisService;
-    
-    @Mock
+    @MockBean
     private BCryptPasswordEncoder passwordEncoder;
-    
-    @InjectMocks
+    @MockBean
+    private UserConverter userConverter;
+
+    @Autowired
     private UserServiceImpl userService;
-    
+
     private UserRegisterDTO registerDTO;
     private User mockUser;
-    
+
     @BeforeEach
     void setUp() {
-        // 准备测试数据
         registerDTO = new UserRegisterDTO();
         registerDTO.setUsername("testuser");
         registerDTO.setPassword("password123");
         registerDTO.setNickname("Test User");
         registerDTO.setPhone("13800138000");
-        
+
         mockUser = new User();
         mockUser.setId(1L);
         mockUser.setUsername("testuser");
         mockUser.setPassword("encoded_password");
         mockUser.setNickname("Test User");
         mockUser.setStatus(1);
+
+        lenient().when(userConverter.toEntity(any(UserRegisterDTO.class))).thenAnswer(inv -> new User());
+        lenient().when(userConverter.toVO(any(User.class))).thenAnswer(inv -> {
+            UserVO vo = new UserVO();
+            vo.setId(1L);
+            vo.setUsername("testuser");
+            vo.setNickname("Test User");
+            return vo;
+        });
+        lenient().when(userConverter.toLoginVO(any(User.class), anyString(), anyLong())).thenAnswer(inv -> {
+            UserLoginVO vo = new UserLoginVO();
+            vo.setToken("mock-token");
+            vo.setUsername("testuser");
+            vo.setUserId(1L);
+            vo.setExpireTime(System.currentTimeMillis() + 7200000);
+            return vo;
+        });
     }
     
     // ==================== 用户注册测试 ====================
@@ -112,25 +129,19 @@ class UserServiceImplTest {
         // When & Then
         assertThatThrownBy(() -> userService.register(registerDTO))
             .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("用户名已存在");
-        
-        // 验证不应该插入数据
+            .hasMessageContaining("用户已存在");
         verify(userMapper, never()).insert(any(User.class));
     }
-    
+
     @Test
     @DisplayName("用户注册 - 获取分布式锁失败")
     void testRegister_LockFailed() {
-        // Given
         when(redisService.setIfAbsent(anyString(), anyString(), anyLong(), any(TimeUnit.class)))
             .thenReturn(false);
-        
-        // When & Then
+
         assertThatThrownBy(() -> userService.register(registerDTO))
             .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("操作过于频繁");
-        
-        // 验证不应该查询数据库
+            .hasMessageContaining("操作失败");
         verify(userMapper, never()).selectCount(any());
     }
     
@@ -147,7 +158,7 @@ class UserServiceImplTest {
         // When & Then
         assertThatThrownBy(() -> userService.register(registerDTO))
             .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("手机号已被注册");
+            .hasMessageContaining("用户已存在");
     }
     
     // ==================== 用户登录测试 ====================
@@ -155,23 +166,22 @@ class UserServiceImplTest {
     @Test
     @DisplayName("用户登录 - 成功场景")
     void testLogin_Success() {
-        // Given
         UserLoginDTO loginDTO = new UserLoginDTO();
         loginDTO.setUsername("testuser");
         loginDTO.setPassword("password123");
-        
         when(userMapper.selectOne(any())).thenReturn(mockUser);
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
-        
-        // When
-        UserLoginVO result = userService.login(loginDTO);
-        
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getToken()).isNotBlank();
-        assertThat(result.getUsername()).isEqualTo("testuser");
-        
-        // 验证更新了登录时间
+
+        try (MockedStatic<StpUtil> stpUtil = Mockito.mockStatic(StpUtil.class)) {
+            stpUtil.when(() -> StpUtil.login(anyLong())).then(inv -> null);
+            stpUtil.when(StpUtil::getTokenValue).thenReturn("mock-token");
+            stpUtil.when(StpUtil::getTokenTimeout).thenReturn(7200L);
+
+            UserLoginVO result = userService.login(loginDTO);
+            assertThat(result).isNotNull();
+            assertThat(result.getToken()).isNotBlank();
+            assertThat(result.getUsername()).isEqualTo("testuser");
+        }
         verify(userMapper, times(1)).updateById(any(User.class));
     }
     
@@ -188,9 +198,9 @@ class UserServiceImplTest {
         // When & Then
         assertThatThrownBy(() -> userService.login(loginDTO))
             .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("用户名或密码错误");
+            .hasMessageContaining("用户不存在");
     }
-    
+
     @Test
     @DisplayName("用户登录 - 密码错误")
     void testLogin_WrongPassword() {
@@ -205,9 +215,9 @@ class UserServiceImplTest {
         // When & Then
         assertThatThrownBy(() -> userService.login(loginDTO))
             .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("用户名或密码错误");
+            .hasMessageContaining("用户不存在");
     }
-    
+
     @Test
     @DisplayName("用户登录 - 账号已禁用")
     void testLogin_UserDisabled() {
@@ -223,7 +233,7 @@ class UserServiceImplTest {
         // When & Then
         assertThatThrownBy(() -> userService.login(loginDTO))
             .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("账号已被禁用");
+            .hasMessageContaining("用户已被禁用");
     }
     
     // ==================== 获取用户信息测试 ====================

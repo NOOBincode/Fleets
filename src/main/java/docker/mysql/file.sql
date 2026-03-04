@@ -1,6 +1,6 @@
 CREATE TABLE `file` (
                         `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '文件ID',
-                        `user_id` bigint(20) NOT NULL COMMENT '上传用户ID',
+                        `uploader_id` bigint(20) NOT NULL COMMENT '上传用户ID',
                         `original_name` varchar(255) NOT NULL COMMENT '原始文件名',
                         `file_name` varchar(255) NOT NULL COMMENT '存储文件名',
                         `file_path` varchar(255) NOT NULL COMMENT '文件路径',
@@ -12,7 +12,7 @@ CREATE TABLE `file` (
                         `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                         `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                         PRIMARY KEY (`id`),
-                        KEY `idx_user_id` (`user_id`),
+                        KEY `idx_uploader_id` (`uploader_id`),
                         KEY `idx_file_md5` (`file_md5`),
                         KEY `idx_is_deleted` (`is_deleted`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件表';

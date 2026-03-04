@@ -3,14 +3,17 @@ package org.example.fleets.group.model.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
  * 群组实体类
  */
 @Data
-@TableName("group")
-public class Group {
+@TableName("chat_group")
+public class Group implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
     
