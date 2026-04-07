@@ -1,6 +1,5 @@
 package org.example.fleets.message.service.impl;
 
-import lombok.var;
 import org.example.fleets.common.exception.BusinessException;
 import org.example.fleets.common.exception.ErrorCode;
 import org.example.fleets.common.service.ConversationService;
@@ -12,10 +11,10 @@ import org.example.fleets.message.model.dto.MessageSendDTO;
 import org.example.fleets.message.model.entity.Message;
 import org.example.fleets.message.model.enums.MessageStatus;
 import org.example.fleets.message.model.vo.MessageVO;
+import org.example.fleets.message.outbox.service.MqOutboxService;
 import org.example.fleets.message.producer.MessageProducer;
 import org.example.fleets.message.repository.MessageRepository;
 import org.example.fleets.user.mapper.UserMapper;
-import org.example.fleets.user.model.entity.User;
 import org.example.fleets.user.service.FriendshipService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,8 +25,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -56,6 +56,10 @@ class MessageServiceImplTest {
     private ConversationService conversationService;
     @Mock
     private MessageProducer messageProducer;
+    @Mock
+    private MqOutboxService mqOutboxService;
+    @Mock
+    private ObjectMapper objectMapper;
     @Mock
     private MessageConverter messageConverter;
     @Mock
@@ -98,9 +102,10 @@ class MessageServiceImplTest {
 
     @Test
     @DisplayName("发送单聊消息 - 成功：保存、信箱、会话、MQ 均被调用")
-    void sendMessage_SingleChat_Success() {
+    void sendMessage_SingleChat_Success() throws Exception {
         when(friendshipService.isFriend(SENDER_ID, RECEIVER_ID)).thenReturn(true);
         when(messageRepository.save(any(Message.class))).thenReturn(savedMessage);
+        when(objectMapper.writeValueAsString(any(Message.class))).thenReturn("{\"id\":\"msg_001\"}");
         MessageVO vo = new MessageVO();
         vo.setId(MESSAGE_ID);
         when(messageConverter.toVO(any(Message.class))).thenReturn(vo);
@@ -114,9 +119,11 @@ class MessageServiceImplTest {
         verify(mailboxService, times(2)).writeMessage(anyLong(), anyString(), any(Message.class), anyBoolean());
         verify(conversationService, times(2)).updateConversation(anyLong(), anyLong(), eq(0), eq(MESSAGE_ID), anyString(), any(Date.class), anyBoolean());
 
+        verify(mqOutboxService, times(1)).enqueueIfAbsent(eq(MESSAGE_ID), eq("im-message-topic"), anyString());
+
         ArgumentCaptor<Object> mqPayload = ArgumentCaptor.forClass(Object.class);
         verify(messageProducer, times(1)).sendMessage(eq("im-message-topic"), mqPayload.capture());
-        assertThat(mqPayload.getValue()).isSameAs(savedMessage);
+        assertThat(mqPayload.getValue()).isInstanceOf(String.class);
     }
 
     @Test
@@ -134,12 +141,13 @@ class MessageServiceImplTest {
 
     @Test
     @DisplayName("发送群聊消息 - 成功：保存、信箱、会话、MQ 均被调用")
-    void sendMessage_GroupChat_Success() {
+    void sendMessage_GroupChat_Success() throws Exception {
         GroupVO groupVO = new GroupVO();
         groupVO.setId(GROUP_ID);
         when(groupService.getGroupInfo(GROUP_ID)).thenReturn(groupVO);
         when(groupService.getGroupMemberIds(GROUP_ID)).thenReturn(Arrays.asList(SENDER_ID, 2L, 3L));
         when(messageRepository.save(any(Message.class))).thenReturn(savedMessage);
+        when(objectMapper.writeValueAsString(any(Message.class))).thenReturn("{\"id\":\"msg_001\"}");
         savedMessage.setMessageType(2);
         savedMessage.setGroupId(GROUP_ID);
         savedMessage.setReceiverId(null);
@@ -153,7 +161,8 @@ class MessageServiceImplTest {
         verify(messageRepository, times(1)).save(any(Message.class));
         verify(mailboxService, atLeastOnce()).writeMessage(anyLong(), anyString(), any(Message.class), anyBoolean());
         verify(conversationService, times(3)).updateConversation(anyLong(), eq(GROUP_ID), eq(1), eq(MESSAGE_ID), anyString(), any(Date.class), anyBoolean());
-        verify(messageProducer, times(1)).sendMessage(eq("im-message-topic"), any(Message.class));
+        verify(mqOutboxService, times(1)).enqueueIfAbsent(eq(MESSAGE_ID), eq("im-message-topic"), anyString());
+        verify(messageProducer, times(1)).sendMessage(eq("im-message-topic"), anyString());
     }
 
     @Test
@@ -251,7 +260,7 @@ class MessageServiceImplTest {
         org.example.fleets.common.util.PageResult<MessageVO> page = org.example.fleets.common.util.PageResult.empty(1, 10);
         when(mailboxService.getConversationMessages(eq(SENDER_ID), anyString(), eq(1), eq(10))).thenReturn(page);
 
-        var result = messageService.getChatHistory(SENDER_ID, RECEIVER_ID, 1, 10);
+        org.example.fleets.common.util.PageResult<MessageVO> result = messageService.getChatHistory(SENDER_ID, RECEIVER_ID, 1, 10);
 
         assertThat(result).isNotNull();
         verify(mailboxService).getConversationMessages(SENDER_ID, "conv_1_2", 1, 10);
@@ -263,7 +272,7 @@ class MessageServiceImplTest {
         org.example.fleets.common.util.PageResult<MessageVO> page = org.example.fleets.common.util.PageResult.empty(1, 10);
         when(mailboxService.getConversationMessages(eq(SENDER_ID), eq("conv_group_" + GROUP_ID), eq(1), eq(10))).thenReturn(page);
 
-        var result = messageService.getGroupChatHistory(SENDER_ID, GROUP_ID, 1, 10);
+        org.example.fleets.common.util.PageResult<MessageVO> result = messageService.getGroupChatHistory(SENDER_ID, GROUP_ID, 1, 10);
 
         assertThat(result).isNotNull();
         verify(mailboxService).getConversationMessages(SENDER_ID, "conv_group_10", 1, 10);

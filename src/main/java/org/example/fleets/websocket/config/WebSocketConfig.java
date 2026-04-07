@@ -10,6 +10,8 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
+import java.util.List;
+
 /**
  * WebSocket 配置
  * 使用 STOMP 协议。至少需注册端点和消息代理，否则 SubProtocolWebSocketHandler 会报 "No handlers" 导致应用无法启动。
@@ -20,6 +22,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WebSocketHandshakeInterceptor handshakeInterceptor;
+    private final WsHandshakeHandler wsHandshakeHandler;
     private final FleetsProperties fleetsProperties;
 
     /**
@@ -37,8 +40,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
      */
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // SockJS 会先对 /ws/info 发跨域 XHR：需 allowedOriginPatterns（Boot 3 推荐）
+        List<String> patterns = fleetsProperties.getWebsocket().getAllowedOriginPatterns();
+        String[] originPatterns = (patterns == null || patterns.isEmpty())
+                ? new String[] {"*"}
+                : patterns.toArray(new String[0]);
         registry.addEndpoint(fleetsProperties.getWebsocket().getEndpoint())
-                .setAllowedOrigins(fleetsProperties.getWebsocket().getAllowedOrigins())
+                .setHandshakeHandler(wsHandshakeHandler)
+                .setAllowedOriginPatterns(originPatterns)
                 .addInterceptors(handshakeInterceptor)
                 .withSockJS();
     }

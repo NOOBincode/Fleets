@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.fleets.cache.redis.RedisService;
+import org.example.fleets.common.aop.annotation.DistributedLock;
+import org.example.fleets.common.aop.annotation.OperationLog;
+import org.example.fleets.common.cache.GenericCacheService;
 import org.example.fleets.common.exception.BusinessException;
 import org.example.fleets.common.exception.ErrorCode;
 import org.example.fleets.common.util.PageResult;
@@ -26,7 +28,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 用户服务实现类
@@ -38,138 +39,77 @@ public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
     private final UserCacheService userCacheService;
-    private final RedisService redisService;
+    private final GenericCacheService genericCacheService;
     private final BCryptPasswordEncoder passwordEncoder;
-    private final UserConverter userConverter;  // 注入MapStruct转换器
+    private final UserConverter userConverter;
     
-    // Redis Key前缀
-    private static final String REGISTER_LOCK_PREFIX = "register:lock:";
     private static final String VERIFY_CODE_PREFIX = "verify:code:";
-    private static final int LOCK_EXPIRE_SECONDS = 10;
 
-    /**
-     * 用户注册
-     */
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @DistributedLock(key = "'user:register:' + #registerDTO.username", message = "注册请求过于频繁，请稍后再试")
+    @OperationLog(module = "用户模块", operation = "用户注册")
     public UserVO register(UserRegisterDTO registerDTO) {
-        log.info("用户注册开始，username: {}", registerDTO.getUsername());
-        
         UserValidator.validateRegister(registerDTO);
         
-        String lockKey = REGISTER_LOCK_PREFIX + registerDTO.getUsername();
-        Boolean locked = redisService.setIfAbsent(lockKey, "1", LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+        checkUniqueness(registerDTO);
         
-        if (locked == null || !locked) {
-            log.warn("用户注册失败，获取分布式锁失败，username: {}", registerDTO.getUsername());
-            throw new BusinessException(ErrorCode.FAILED, "注册请求过于频繁，请稍后再试");
+        if (StringUtils.hasText(registerDTO.getVerifyCode())) {
+            validateVerifyCode(registerDTO);
         }
         
-        try {
-            checkUniqueness(registerDTO);
-            
-            if (StringUtils.hasText(registerDTO.getVerifyCode())) {
-                validateVerifyCode(registerDTO);
-            }
-            
-            // 使用MapStruct转换
-            User user = userConverter.toEntity(registerDTO);
-            // 单独设置密码（需要加密）
-            String encodedPassword = passwordEncoder.encode(registerDTO.getPassword());
-            user.setPassword(encodedPassword);
-            
-            int insertResult = userMapper.insert(user);
-            if (insertResult <= 0) {
-                throw new BusinessException(ErrorCode.FAILED, "用户注册失败");
-            }
-            
-            if (StringUtils.hasText(registerDTO.getVerifyCode())) {
-                redisService.delete(getVerifyCodeKey(registerDTO));
-            }
-            
-            log.info("用户注册成功，userId: {}, username: {}", user.getId(), user.getUsername());
-            return userConverter.toVO(user);
-            
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("用户注册异常，username: {}", registerDTO.getUsername(), e);
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，请稍后重试");
-        } finally {
-            redisService.delete(lockKey);
+        User user = userConverter.toEntity(registerDTO);
+        String encodedPassword = passwordEncoder.encode(registerDTO.getPassword());
+        user.setPassword(encodedPassword);
+        
+        int insertResult = userMapper.insert(user);
+        if (insertResult <= 0) {
+            throw new BusinessException(ErrorCode.FAILED, "用户注册失败");
         }
+        
+        if (StringUtils.hasText(registerDTO.getVerifyCode())) {
+            genericCacheService.delete(getVerifyCodeKey(registerDTO));
+        }
+        
+        return userConverter.toVO(user);
     }
 
-    /**
-     * 用户登录
-     */
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @OperationLog(module = "用户模块", operation = "用户登录")
     public UserLoginVO login(UserLoginDTO loginDTO) {
-        log.info("用户登录开始，username: {}", loginDTO.getUsername());
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getUsername, loginDTO.getUsername());
+        User user = userMapper.selectOne(wrapper);
         
-        try {
-            // 1. 查询用户
-            LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(User::getUsername, loginDTO.getUsername());
-            User user = userMapper.selectOne(wrapper);
-            
-            if (user == null) {
-                throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户名或密码错误");
-            }
-            
-            // 2. 校验密码
-            if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
-                log.warn("用户登录失败，密码错误，username: {}", loginDTO.getUsername());
-                throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户名或密码错误");
-            }
-            
-            // 3. 校验用户状态
-            if (user.getStatus() != 1) {
-                throw new BusinessException(ErrorCode.USER_DISABLED, "账号已被禁用");
-            }
-            
-            // 4. 使用 Sa-Token 登录
-            StpUtil.login(user.getId());
-            String token = StpUtil.getTokenValue();
-            Long expireTime = System.currentTimeMillis() + (StpUtil.getTokenTimeout() * 1000);
-            
-            // 5. 更新登录信息
-            user.setLastLoginTime(new Date());
-            userMapper.updateById(user);
-            
-            log.info("用户登录成功，userId: {}, username: {}", user.getId(), user.getUsername());
-            return userConverter.toLoginVO(user, token, expireTime);
-            
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("用户登录异常，username: {}", loginDTO.getUsername(), e);
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "登录失败，请稍后重试");
+        if (user == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户名或密码错误");
         }
+        
+        if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户名或密码错误");
+        }
+        
+        if (user.getStatus() != 1) {
+            throw new BusinessException(ErrorCode.USER_DISABLED, "账号已被禁用");
+        }
+        
+        StpUtil.login(user.getId());
+        String token = StpUtil.getTokenValue();
+        Long expireTime = System.currentTimeMillis() + (StpUtil.getTokenTimeout() * 1000);
+        
+        user.setLastLoginTime(new Date());
+        userMapper.updateById(user);
+        
+        return userConverter.toLoginVO(user, token, expireTime);
     }
 
-    /**
-     * 用户登出
-     */
     @Override
+    @OperationLog(module = "用户模块", operation = "用户登出")
     public boolean logout(Long userId) {
-        log.info("用户登出，userId: {}", userId);
-        
-        try {
-            // 使用 Sa-Token 登出
-            StpUtil.logout(userId);
-            
-            // 清理用户缓存
-            userCacheService.deleteUserCache(userId);
-            
-            log.info("用户登出成功，userId: {}", userId);
-            return true;
-            
-        } catch (Exception e) {
-            log.error("用户登出异常，userId: {}", userId, e);
-            return false;
-        }
+        StpUtil.logout(userId);
+        userCacheService.deleteUserCache(userId);
+        return true;
     }
 
     /**
@@ -338,7 +278,7 @@ public class UserServiceImpl implements UserService {
             
             // 验证验证码
             String codeKey = VERIFY_CODE_PREFIX + (StringUtils.hasText(user.getPhone()) ? user.getPhone() : user.getEmail());
-            String cachedCode = redisService.getString(codeKey);
+            String cachedCode = genericCacheService.getString(codeKey);
             
             if (!StringUtils.hasText(cachedCode)) {
                 throw new BusinessException(ErrorCode.VALIDATE_FAILED, "验证码已过期");
@@ -359,7 +299,7 @@ public class UserServiceImpl implements UserService {
             }
             
             // 清理验证码和Token
-            redisService.delete(codeKey);
+            genericCacheService.delete(codeKey);
             StpUtil.logout(user.getId());
             
             log.info("重置密码成功，userId: {}", user.getId());
@@ -563,14 +503,26 @@ public class UserServiceImpl implements UserService {
             // 构建查询条件
             LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
             
-            // 用户名模糊查询
-            if (StringUtils.hasText(queryDTO.getUsername())) {
-                wrapper.like(User::getUsername, queryDTO.getUsername());
-            }
-            
-            // 昵称模糊查询
-            if (StringUtils.hasText(queryDTO.getNickname())) {
-                wrapper.like(User::getNickname, queryDTO.getNickname());
+            // 用户名 / 昵称模糊查询
+            // MyBatis-Plus 链式多个 like() 默认用 AND 拼接；加好友等场景会把同一关键词同时塞进 username、nickname，
+            // 语义应为「用户名或昵称任一匹配」，需包一层 and(w -> ... or ...)（与 FriendshipServiceImpl#searchFriend 一致）。
+            String usernameQ = queryDTO.getUsername();
+            String nicknameQ = queryDTO.getNickname();
+            boolean hasUsername = StringUtils.hasText(usernameQ);
+            boolean hasNickname = StringUtils.hasText(nicknameQ);
+            if (hasUsername && hasNickname) {
+                String tu = usernameQ.trim();
+                String tn = nicknameQ.trim();
+                if (tu.equals(tn)) {
+                    wrapper.and(w -> w.like(User::getUsername, tu).or().like(User::getNickname, tn));
+                } else {
+                    wrapper.like(User::getUsername, usernameQ);
+                    wrapper.like(User::getNickname, nicknameQ);
+                }
+            } else if (hasUsername) {
+                wrapper.like(User::getUsername, usernameQ);
+            } else if (hasNickname) {
+                wrapper.like(User::getNickname, nicknameQ);
             }
             
             // 手机号精确查询
@@ -629,13 +581,20 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS, "邮箱已被注册");
         }
     }
+
+    @Override
+    public Long refreshToken() {
+        Long userId = StpUtil.getLoginIdAsLong();
+        StpUtil.getTokenValueByLoginId(userId);
+        return System.currentTimeMillis() + (StpUtil.getTokenTimeout() * 1000);
+    }
     
     /**
      * 验证码校验
      */
     private void validateVerifyCode(UserRegisterDTO registerDTO) {
         String codeKey = getVerifyCodeKey(registerDTO);
-        String cachedCode = redisService.getString(codeKey);
+        String cachedCode = genericCacheService.getString(codeKey);
         
         if (!StringUtils.hasText(cachedCode)) {
             throw new BusinessException(ErrorCode.VALIDATE_FAILED, "验证码已过期，请重新获取");

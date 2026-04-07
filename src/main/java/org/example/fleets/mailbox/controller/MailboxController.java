@@ -29,9 +29,10 @@ public class MailboxController {
      */
     @GetMapping("/pull")
     public CommonResult<List<MessageVO>> pullOfflineMessages(
-            @RequestParam(defaultValue = "0") Long lastSequence) {
+            @RequestParam(defaultValue = "0") Long lastSequence,
+            @RequestParam(required = false) Integer limit) {
         Long userId = StpUtil.getLoginIdAsLong();
-        List<MessageVO> messages = mailboxService.pullOfflineMessages(userId, lastSequence);
+        List<MessageVO> messages = mailboxService.pullOfflineMessages(userId, lastSequence, limit);
         return CommonResult.success(messages);
     }
     

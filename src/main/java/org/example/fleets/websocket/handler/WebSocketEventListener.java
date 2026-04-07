@@ -2,6 +2,7 @@ package org.example.fleets.websocket.handler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.fleets.websocket.service.WebSocketService;
 import org.example.fleets.websocket.service.UserOnlineService;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -22,6 +23,7 @@ import java.security.Principal;
 public class WebSocketEventListener {
 
     private final UserOnlineService userOnlineService;
+    private final WebSocketService webSocketService;
 
     /**
      * 连接建立事件：从 Principal 取 userId，记录上线
@@ -37,6 +39,7 @@ public class WebSocketEventListener {
         }
         Long userId = Long.parseLong(principal.getName());
         userOnlineService.userOnline(userId, sessionId);
+        webSocketService.sendOnlineStatusChange(userId, true);
         log.info("WebSocket 连接建立: userId={}, sessionId={}", userId, sessionId);
     }
 
@@ -57,6 +60,7 @@ public class WebSocketEventListener {
         }
         if (userId != null && sessionId != null) {
             userOnlineService.userOffline(userId, sessionId);
+            webSocketService.sendOnlineStatusChange(userId, false);
             log.info("WebSocket 连接断开: userId={}, sessionId={}", userId, sessionId);
         } else {
             log.warn("WebSocket 连接断开但无法解析 userId: sessionId={}", sessionId);

@@ -35,3 +35,7 @@ docker/observability/
 graduation-thesis/
 logs/
 upload/
+
+.cursor/
+docker/
+arthas-output/

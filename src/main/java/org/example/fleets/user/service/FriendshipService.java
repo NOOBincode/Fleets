@@ -38,6 +38,21 @@ public interface FriendshipService {
      * 获取待处理的好友请求数量
      */
     Integer getPendingRequestCount(Long userId);
+
+    /**
+     * 我发出的、仍处于待确认的好友申请列表（骨架：见实现类 TODO）。
+     */
+    List<FriendApplyVO> getSentFriendRequests(Long userId);
+
+    /**
+     * 上述列表条数（骨架：见实现类 TODO）。
+     */
+    Integer getSentPendingCount(Long userId);
+
+    /**
+     * 发起方撤销待确认申请，双向 status 置为 4（骨架：见实现类 TODO）。
+     */
+    boolean cancelFriendRequest(Long userId, Long friendId);
     
     /**
      * 删除好友

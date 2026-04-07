@@ -1,24 +1,22 @@
 package org.example.fleets.common.config;
 
+import java.io.File;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/**
- * Web MVC 配置
- * 注意：认证拦截器已移至 SaTokenConfig
- */
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
     
     @Value("${file.upload.path:upload}")
     private String uploadPath;
     
-    /**
-     * 配置跨域
-     */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
@@ -29,13 +27,22 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .maxAge(3600);
     }
     
-    /**
-     * 配置静态资源映射 - 文件访问
-     */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 映射 /files/** 到本地 upload 目录
+        File uploadDir = new File(uploadPath);
+        if (!uploadDir.isAbsolute()) {
+            uploadDir = new File(System.getProperty("user.dir"), uploadPath);
+        }
+        
+        String location = uploadDir.getAbsolutePath();
+        if (!location.endsWith("/") && !location.endsWith("\\")) {
+            location = location + "/";
+        }
+        location = "file:///" + location.replace("\\", "/");
+        
+        log.info("静态资源映射: /files/** -> {}", location);
+        
         registry.addResourceHandler("/files/**")
-                .addResourceLocations("file:" + uploadPath + "/");
+                .addResourceLocations(location);
     }
 }

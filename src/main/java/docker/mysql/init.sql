@@ -75,15 +75,18 @@ create index idx_is_deleted
 
 create table friendship
 (
-    id          bigint auto_increment comment '关系ID'
+    id                  bigint auto_increment comment '关系ID'
         primary key,
-    user_id     bigint                               not null comment '用户ID',
-    friend_id   bigint                               not null comment '好友ID',
-    remark      varchar(64)                          null comment '好友备注',
-    status      tinyint(1) default 0                 not null comment '状态：0-待确认，1-已确认，2-已拒绝，3-已拉黑',
-    is_deleted  tinyint(1) default 0                 not null comment '是否删除：0-否，1-是',
-    create_time datetime   default CURRENT_TIMESTAMP not null comment '创建时间',
-    update_time datetime   default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
+    user_id             bigint                               not null comment '用户ID（行视角：当前用户）',
+    friend_id           bigint                               not null comment '好友ID（行视角：对端用户）',
+    remark              varchar(64)                          null comment '我对好友的备注（仅发起方行在申请时写入；镜像行可为空）',
+    applicant_user_id   bigint                               null comment '本次好友申请的发起人；双向两行同值；status=0/2/4 时有意义',
+    verify_message      varchar(100)                         null comment '申请附言；双向两行同值',
+    last_apply_time     datetime                             null comment '最后一次发起/刷新申请的时间（重复 pending 时更新）',
+    status              tinyint(1) default 0                 not null comment '状态：0-待确认，1-已确认，2-已拒绝，3-已拉黑，4-已撤销（发起方撤回）',
+    is_deleted          tinyint(1) default 0                 not null comment '是否删除：0-否，1-是',
+    create_time         datetime   default CURRENT_TIMESTAMP not null comment '首次建立该(user_id,friend_id)行的时间',
+    update_time         datetime   default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
     constraint idx_user_friend
         unique (user_id, friend_id)
 )
@@ -91,6 +94,9 @@ create table friendship
 
 create index idx_friend_id
     on friendship (friend_id);
+
+create index idx_friendship_pending_inbox
+    on friendship (friend_id, status, applicant_user_id);
 
 create index idx_is_deleted
     on friendship (is_deleted);

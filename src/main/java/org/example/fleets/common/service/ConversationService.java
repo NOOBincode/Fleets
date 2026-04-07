@@ -24,6 +24,29 @@ public interface ConversationService {
     void updateConversation(Long ownerId, Long targetId, Integer type,
                           String messageId, String content, Date messageTime,
                           boolean incrementUnread);
+
+    /**
+     * 确保会话存在（查不到就创建）
+     *
+     * 设计要点 / TODO（需要你实现）：
+     * 1. 会话维度：
+     *    - ownerId：当前登录用户 ID，即会话“所属者”
+     *    - targetId：单聊时为对方用户 ID，群聊时为群组 ID
+     *    - type：0=单聊，1=群聊（建议和前端 ConversationType 保持一致）
+     *
+     * 2. 行为：
+     *    - 根据 ownerId + targetId + type 生成唯一的 conversationId
+     *      （可以复用当前类中的 generateConversationId 逻辑）
+     *    - 在 DB 中按 conversationId + ownerId 查询：
+     *      - 若已存在则直接返回
+     *      - 若不存在则插入一条“空会话”记录（无 lastMessage）
+     *
+     * 3. 注意事项：
+     *    - 不要在这里修改未读数（unreadCount 初始为 0）
+     *    - 避免和 updateConversation 里的“更新最后一条消息”逻辑耦合
+     *    - 需要考虑并发下的幂等性（可以先简单实现，后续再根据需要优化）
+     */
+    Conversation ensureConversation(Long ownerId, Long targetId, Integer type);
     
     /**
      * 获取用户的会话列表

@@ -4,10 +4,16 @@ import lombok.RequiredArgsConstructor;
 import cn.dev33.satoken.stp.StpUtil;
 import org.example.fleets.common.api.CommonResult;
 import org.example.fleets.common.util.PageResult;
+import org.example.fleets.group.model.dto.GroupAdminDTO;
 import org.example.fleets.group.model.dto.GroupCreateDTO;
+import org.example.fleets.group.model.dto.GroupMuteDTO;
+import org.example.fleets.group.model.dto.GroupTransferDTO;
+import org.example.fleets.group.model.vo.GroupMemberItemVO;
 import org.example.fleets.group.model.vo.GroupVO;
 import org.example.fleets.group.service.GroupService;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 /**
  * 群组控制器
@@ -84,6 +90,42 @@ public class GroupController {
     }
     
     /**
+     * 设置/取消管理员
+     */
+    @PostMapping("/{groupId}/admin")
+    public CommonResult<Boolean> setAdmin(
+            @PathVariable Long groupId,
+            @RequestBody @Validated GroupAdminDTO adminDTO) {
+        Long userId = StpUtil.getLoginIdAsLong();
+        boolean result = groupService.setAdmin(groupId, userId, adminDTO.getTargetUserId(), adminDTO.getIsAdmin());
+        return CommonResult.success(result);
+    }
+    
+    /**
+     * 禁言成员
+     */
+    @PostMapping("/{groupId}/mute")
+    public CommonResult<Boolean> muteMember(
+            @PathVariable Long groupId,
+            @RequestBody @Validated GroupMuteDTO muteDTO) {
+        Long userId = StpUtil.getLoginIdAsLong();
+        boolean result = groupService.muteMember(groupId, userId, muteDTO.getTargetUserId(), muteDTO.getMuteMinutes());
+        return CommonResult.success(result);
+    }
+    
+    /**
+     * 转让群主
+     */
+    @PostMapping("/{groupId}/transfer")
+    public CommonResult<Boolean> transferOwner(
+            @PathVariable Long groupId,
+            @RequestBody @Validated GroupTransferDTO transferDTO) {
+        Long userId = StpUtil.getLoginIdAsLong();
+        boolean result = groupService.transferOwner(groupId, userId, transferDTO.getNewOwnerId());
+        return CommonResult.success(result);
+    }
+    
+    /**
      * 获取群信息
      */
     @GetMapping("/{groupId}")
@@ -102,5 +144,24 @@ public class GroupController {
         Long userId = StpUtil.getLoginIdAsLong();
         PageResult<GroupVO> result = groupService.getUserGroups(userId, pageNum, pageSize);
         return CommonResult.success(result);
+    }
+
+    /**
+     * 获取群成员ID列表
+     */
+    @GetMapping("/{groupId}/members")
+    public CommonResult<List<Long>> getGroupMemberIds(@PathVariable Long groupId) {
+        List<Long> memberIds = groupService.getGroupMemberIds(groupId);
+        return CommonResult.success(memberIds);
+    }
+
+    /**
+     * 获取群成员列表（头像、显示名等），仅群成员可访问
+     */
+    @GetMapping("/{groupId}/members/detail")
+    public CommonResult<List<GroupMemberItemVO>> listGroupMemberItems(@PathVariable Long groupId) {
+        Long userId = StpUtil.getLoginIdAsLong();
+        List<GroupMemberItemVO> list = groupService.listGroupMemberItems(groupId, userId);
+        return CommonResult.success(list);
     }
 }

@@ -2,6 +2,7 @@ package org.example.fleets.message.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.fleets.common.exception.BusinessException;
 import org.example.fleets.common.exception.ErrorCode;
 import org.example.fleets.common.service.ConversationService;
@@ -14,6 +15,7 @@ import org.example.fleets.message.model.dto.MessageSendDTO;
 import org.example.fleets.message.model.entity.Message;
 import org.example.fleets.message.model.enums.MessageStatus;
 import org.example.fleets.message.model.vo.MessageVO;
+import org.example.fleets.message.outbox.service.MqOutboxService;
 import org.example.fleets.message.producer.MessageProducer;
 import org.example.fleets.message.repository.MessageRepository;
 import org.example.fleets.message.service.MessageService;
@@ -22,7 +24,6 @@ import org.example.fleets.user.model.entity.User;
 import org.example.fleets.user.service.FriendshipService;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,6 +41,8 @@ public class MessageServiceImpl implements MessageService {
     private final MailboxService mailboxService;
     private final ConversationService conversationService;
     private final MessageProducer messageProducer;
+    private final MqOutboxService mqOutboxService;
+    private final ObjectMapper objectMapper;
     private final MessageConverter messageConverter;
     private final GroupService groupService;
     private final FriendshipService friendshipService;
@@ -70,16 +73,17 @@ public class MessageServiceImpl implements MessageService {
 
         // 2. 构建并保存 Message
         Message message = Message.fromSendDTO(senderId, sendDTO);
-        Message saved = messageRepository.save(message);
-        if (saved == null) {
-            throw new BusinessException(ErrorCode.MESSAGE_SAVE_FAILED);
-        }
-
+        
         // 会话ID生成规则与读取端保持一致：
         // type=0 表示单聊（conv_min_max），type=1 表示群聊（conv_group_<groupId>）
         int conversationType = (msgType == 1) ? 0 : 1;
         String conversationId = generateConversationId(conversationType, senderId,
                 msgType == 1 ? sendDTO.getReceiverId() : sendDTO.getGroupId());
+        message.setConversationId(conversationId);
+        
+        Message saved = messageRepository.save(message);
+        Assert.notNull(saved, ErrorCode.MESSAGE_SAVE_FAILED);
+        Assert.hasText(saved.getId(), ErrorCode.MESSAGE_SAVE_FAILED);
 
         // 3. 写入 Mailbox（发送者不增未读，接收者增未读）
         if (msgType == 1) {
@@ -109,8 +113,24 @@ public class MessageServiceImpl implements MessageService {
             }
         }
 
-        // 5. 发送到 RocketMQ（供 MessageConsumer 做 WebSocket 推送）
-        messageProducer.sendMessage(TOPIC_IM_MESSAGE, saved);
+        // 5. 写入 Outbox（幂等）并尽力投递 MQ（失败则由定时任务补偿重试）
+        String payloadJson;
+        try {
+            payloadJson = objectMapper.writeValueAsString(saved);
+        } catch (Exception e) {
+            // 极端情况：序列化失败，直接降级为不推送（消息仍在 Mongo + Mailbox，可由客户端同步拉取）
+            log.error("消息序列化失败，跳过 MQ 投递: messageId={}", saved.getId(), e);
+            payloadJson = null;
+        }
+
+        if (payloadJson != null) {
+            mqOutboxService.enqueueIfAbsent(saved.getId(), TOPIC_IM_MESSAGE, payloadJson);
+            try {
+                messageProducer.sendMessage(TOPIC_IM_MESSAGE, payloadJson);
+            } catch (Exception e) {
+                log.warn("MQ 投递失败，等待 Outbox 重试: messageId={}", saved.getId(), e);
+            }
+        }
 
         // 6. 返回 MessageVO（填充发送者信息）
         MessageVO vo = messageConverter.toVO(saved);
@@ -154,20 +174,35 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public PageResult<MessageVO> getChatHistory(Long userId, Long targetUserId, Integer pageNum, Integer pageSize) {
         String conversationId = generateConversationId(0, userId, targetUserId);
+        // 首次进入单聊时确保会话存在（无消息也可打开聊天页）
+        conversationService.ensureConversation(userId, targetUserId, 0);
         return mailboxService.getConversationMessages(userId, conversationId, pageNum, pageSize);
     }
 
     @Override
     public PageResult<MessageVO> getGroupChatHistory(Long userId, Long groupId, Integer pageNum, Integer pageSize) {
+        // 进入群聊必须校验：群存在且当前用户为群成员
+        groupService.getGroupInfo(groupId); // 不存在会抛 GROUP_NOT_FOUND
+        List<Long> memberIds = groupService.getGroupMemberIds(groupId);
+        Assert.isTrue(memberIds.contains(userId), ErrorCode.NOT_GROUP_MEMBER);
+
         String conversationId = "conv_group_" + groupId;
+        // 首次进入群聊时确保会话存在（无消息也可打开聊天页）
+        conversationService.ensureConversation(userId, groupId, 1);
         return mailboxService.getConversationMessages(userId, conversationId, pageNum, pageSize);
     }
 
     @Override
     public PageResult<MessageVO> searchMessage(Long userId, String keyword, Integer pageNum, Integer pageSize) {
-        // TODO: 实现搜索消息（按关键词搜索 MailboxMessage）
-        log.warn("搜索消息功能未实现: userId={}, keyword={}", userId, keyword);
-        return PageResult.empty(pageNum, pageSize);
+        Assert.notNull(userId, "用户ID不能为空");
+        Assert.hasText(keyword, "搜索关键词不能为空");
+        int pn = pageNum != null && pageNum > 0 ? pageNum : 1;
+        int ps = pageSize != null && pageSize > 0 ? Math.min(pageSize, 100) : 20;
+        String kw = keyword.trim();
+        if (kw.length() > 200) {
+            kw = kw.substring(0, 200);
+        }
+        return mailboxService.searchMessages(userId, kw, pn, ps);
     }
 
     private String generateConversationId(Integer type, Long userId1, Long targetId) {

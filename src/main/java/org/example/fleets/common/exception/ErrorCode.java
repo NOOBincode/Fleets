@@ -17,6 +17,8 @@ public enum ErrorCode {
     VALIDATE_FAILED(1004, "参数校验失败"),
     NOT_IMPLEMENTED(1005, "功能未实现"),
     UNAUTHORIZED(1006, "未授权"),
+    FORBIDDEN(1007, "没有相关权限"),
+    NOT_FOUND(1008, "资源不存在：%s"),
     
     // 用户模块 2xxx
     USER_NOT_FOUND(2001, "用户不存在"),
@@ -28,6 +30,10 @@ public enum ErrorCode {
     FRIENDSHIP_NOT_FOUND(3001, "好友关系不存在"),
     FRIENDSHIP_ALREADY_EXISTS(3002, "已经是好友"),
     CANNOT_ADD_SELF(3003, "不能添加自己为好友"),
+    /** 对端已向你发起待处理申请，应去「收到的申请」处理，勿重复发起 */
+    FRIEND_REQUEST_PENDING_FROM_OTHER(3004, "对方已向你发起好友申请，请前往处理"),
+    /** 申请/撤销过于频繁（Redis 频控触发） */
+    FRIEND_REQUEST_RATE_LIMITED(3005, "操作过于频繁，请稍后再试"),
     
     // 消息模块 4xxx
     MESSAGE_NOT_FOUND(4001, "消息不存在"),

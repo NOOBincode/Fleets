@@ -2,7 +2,7 @@ package org.example.fleets.mailbox.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.fleets.cache.redis.RedisService;
+import org.example.fleets.common.cache.GenericCacheService;
 import org.example.fleets.common.config.properties.FleetsProperties;
 import org.example.fleets.common.constant.LogConstants;
 import org.example.fleets.common.exception.BusinessException;
@@ -31,6 +31,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -43,15 +44,11 @@ public class MailboxServiceImpl implements MailboxService {
     
     private final UserMailboxRepository userMailboxRepository;
     private final MailboxMessageRepository mailboxMessageRepository;
-    private final RedisService redisService;
+    private final GenericCacheService genericCacheService;
     private final SequenceService sequenceService;
     private final MailboxConverter mailboxConverter;
     private final UserMapper userMapper;
     private final FleetsProperties fleetsProperties;
-
-    
-    private static final String SEQUENCE_KEY_PREFIX = "mailbox:seq:";
-
 
     @Override
     public boolean writeMessage(Long userId, String conversationId, Message message) {
@@ -151,23 +148,36 @@ public class MailboxServiceImpl implements MailboxService {
     }
     
     @Override
-    public List<MessageVO> pullOfflineMessages(Long userId, Long lastSequence) {
-        log.info("拉取离线消息，userId: {}, lastSequence: {}", userId, lastSequence);
-        
-        // 1. 查询所有会话的信箱
-        // 2. 查询序列号大于lastSequence的消息
-        // 3. 转换为MessageVO并返回
+    public List<MessageVO> pullOfflineMessages(Long userId, Long lastSequence, Integer limit) {
+        log.info("拉取离线消息，userId: {}, lastSequence: {}, limit: {}", userId, lastSequence, limit);
+
+        int cap = (limit != null && limit > 0) ? Math.min(limit, 500) : fleetsProperties.getMailbox().getPullMessageLimit();
+        long floor = lastSequence != null ? lastSequence : 0L;
 
         try {
             List<UserMailbox> mailboxes = userMailboxRepository.findByUserId(userId);
-            if (mailboxes.isEmpty()){
+            if (mailboxes.isEmpty()) {
                 log.info("当前用户没有可用的信箱");
                 return Collections.emptyList();
             }
-            List<MessageVO> result = new ArrayList<>();
-            // TODO: 当前实现占位。由于 sequence 按 (userId, conversationId) 维度递增，
-            //  使用单一 lastSequence 拉取全会话离线消息在语义上不准确，后续会统一调整为按会话同步或按时间同步。
-            return result;
+            mailboxes.sort(Comparator.comparing(
+                    m -> m.getLastMessageTime() != null ? m.getLastMessageTime() : new Date(0L),
+                    Comparator.reverseOrder()));
+
+            List<MessageVO> acc = new ArrayList<>();
+            for (UserMailbox mb : mailboxes) {
+                if (acc.size() >= cap) {
+                    break;
+                }
+                int need = cap - acc.size();
+                Pageable pageable = PageRequest.of(0, need, Sort.by("sequence").ascending());
+                List<MailboxMessage> chunk = mailboxMessageRepository.findByUserIdAndConversationIdAndSequenceGreaterThan(
+                        userId, mb.getConversationId(), floor, pageable);
+                acc.addAll(mailboxConverter.toMessageVOList(chunk));
+            }
+            acc.sort(Comparator.comparing(MessageVO::getSendTime, Comparator.nullsLast(Comparator.naturalOrder())));
+            enrichWithSenderInfo(acc);
+            return acc;
         } catch (Exception e) {
             log.error("拉取离线消息失败，userId: {}, lastSequence: {}", userId, lastSequence, e);
             throw new BusinessException(ErrorCode.MAILBOX_READ_FAILED, e);
@@ -178,11 +188,6 @@ public class MailboxServiceImpl implements MailboxService {
     public SyncResult syncMessages(Long userId, SyncMessageDTO syncDTO) {
         log.info("增量同步消息，userId: {}, conversationId: {}, fromSequence: {}", 
             userId, syncDTO.getConversationId(), syncDTO.getFromSequence());
-        
-        // TODO: 实现增量同步消息逻辑
-        // 1. 查询该会话的信箱
-        // 2. 查询fromSequence之后的所有消息
-        // 3. 返回同步结果
         try {
             UserMailbox userMailbox = userMailboxRepository.findByUserIdAndConversationId(userId, syncDTO.getConversationId()).orElse(null);
             if (userMailbox == null) {
@@ -256,9 +261,31 @@ public class MailboxServiceImpl implements MailboxService {
         log.info("批量标记已读，userId: {}, conversationId: {}, toSequence: {}", 
             userId, conversationId, toSequence);
         
-        // TODO: 实现批量标记已读逻辑
+        Assert.notNull(userId, "用户ID不能为空");
+        Assert.hasText(conversationId, "会话ID不能为空");
+        Assert.notNull(toSequence, "序列号不能为空");
 
-        return false;
+        try {
+            long modified = mailboxMessageRepository.markAsReadUpToSequenceIfUnread(
+                    userId,
+                    conversationId,
+                    toSequence,
+                    new Date()
+            );
+
+            if (modified <= 0) {
+                return true;
+            }
+
+            userMailboxRepository.decrementOrResetUnreadCount(userId, conversationId, modified);
+
+            clearUnreadCountCache(userId);
+            return true;
+        } catch (Exception e) {
+            log.error("批量标记已读失败，userId: {}, conversationId: {}, toSequence: {}",
+                    userId, conversationId, toSequence, e);
+            throw new BusinessException(ErrorCode.MAILBOX_READ_FAILED, e);
+        }
     }
 
     /**
@@ -270,26 +297,21 @@ public class MailboxServiceImpl implements MailboxService {
         log.info("获取未读消息数，userId: {}", userId);
 
         try {
-            // 1. 先查缓存
             String keyPrefix = fleetsProperties.getRedis().getUnreadCountKeyPrefix();
             String cacheKey = keyPrefix + userId;
-            Object cached = redisService.get(cacheKey);
-            if (cached instanceof UnreadCountVO) {
-                return (UnreadCountVO) cached;
+            UnreadCountVO cached = genericCacheService.get(cacheKey);
+            if (cached != null) {
+                return cached;
             }
 
-            // 2. 统计总未读数
             long totalUnread = mailboxMessageRepository.countByUserIdAndStatus(userId, 0);
 
-            // 3. 查询各会话的未读数
             List<UserMailbox> mailboxes = userMailboxRepository.findByUserId(userId);
 
-            // 4. 使用MapStruct组装结果
             UnreadCountVO vo = mailboxConverter.toUnreadCountVO(totalUnread, mailboxes);
 
-            // 5. 写入缓存
             int cacheMinutes = fleetsProperties.getMailbox().getUnreadCountCacheMinutes();
-            redisService.set(cacheKey, vo, cacheMinutes, java.util.concurrent.TimeUnit.MINUTES);
+            genericCacheService.set(cacheKey, vo, cacheMinutes, TimeUnit.MINUTES);
 
             return vo;
 
@@ -320,10 +342,18 @@ public class MailboxServiceImpl implements MailboxService {
     public boolean clearConversation(Long userId, String conversationId) {
         log.info("清空会话消息，userId: {}, conversationId: {}", userId, conversationId);
 
-        // TODO: 实现清空会话消息逻辑
-        // 需要使用MongoTemplate进行批量删除
+        Assert.notNull(userId, "用户ID不能为空");
+        Assert.hasText(conversationId, "会话ID不能为空");
 
-        return false;
+        try {
+            mailboxMessageRepository.markAsDeletedByConversation(userId, conversationId, new Date());
+            userMailboxRepository.resetUnreadCountToZero(userId, conversationId);
+            clearUnreadCountCache(userId);
+            return true;
+        } catch (Exception e) {
+            log.error("清空会话消息失败，userId: {}, conversationId: {}", userId, conversationId, e);
+            throw new BusinessException(ErrorCode.MAILBOX_READ_FAILED, e);
+        }
     }
 
     /**
@@ -404,15 +434,31 @@ public class MailboxServiceImpl implements MailboxService {
     }
 
     @Override
+    public Long getMaxMailboxSequence(Long userId) {
+        List<UserMailbox> list = userMailboxRepository.findByUserId(userId);
+        return list.stream()
+                .map(UserMailbox::getSequence)
+                .filter(Objects::nonNull)
+                .max(Long::compareTo)
+                .orElse(0L);
+    }
+
+    @Override
+    public PageResult<MessageVO> searchMessages(Long userId, String keyword, int pageNum, int pageSize) {
+        Assert.notNull(userId, "用户ID不能为空");
+        Assert.hasText(keyword, "关键词不能为空");
+        int pn = Math.max(1, pageNum);
+        int ps = Math.max(1, Math.min(pageSize, 100));
+        Pageable pageable = PageRequest.of(pn - 1, ps, Sort.by(Sort.Direction.DESC, "sendTime"));
+        Page<MailboxMessage> page = mailboxMessageRepository.searchByUserIdAndKeyword(userId, keyword.trim(), pageable);
+        List<MessageVO> list = mailboxConverter.toMessageVOList(page.getContent());
+        enrichWithSenderInfo(list);
+        return PageResult.of(page.getTotalElements(), list, pn, ps);
+    }
+
+    @Override
     public Long generateSequence(Long userId, String conversationId) {
-        // 使用Redis原子递增生成序列号
-        String key = SEQUENCE_KEY_PREFIX + userId + ":" + conversationId;
-        Long sequence = redisService.increment(key);
-        
-        log.debug("生成序列号，userId: {}, conversationId: {}, sequence: {}", 
-            userId, conversationId, sequence);
-        
-        return sequence;
+        return sequenceService.generateSequence(userId, conversationId);
     }
 
     // ==================== 私有方法 ====================
@@ -471,7 +517,7 @@ public class MailboxServiceImpl implements MailboxService {
     private void clearUnreadCountCache(Long userId) {
         String keyPrefix = fleetsProperties.getRedis().getUnreadCountKeyPrefix();
         String cacheKey = keyPrefix + userId;
-        redisService.delete(cacheKey);
+        genericCacheService.delete(cacheKey);
     }
 
 }

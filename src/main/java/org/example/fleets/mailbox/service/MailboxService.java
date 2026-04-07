@@ -40,9 +40,20 @@ public interface MailboxService {
     boolean batchWriteMessage(List<Long> userIds, String conversationId, Message message, boolean incrementUnread);
     
     /**
-     * 拉取离线消息
+     * 拉取离线消息（默认条数由配置 {@code fleets.mailbox.pull-message-limit} 决定）
      */
-    List<MessageVO> pullOfflineMessages(Long userId, Long lastSequence);
+    default List<MessageVO> pullOfflineMessages(Long userId, Long lastSequence) {
+        return pullOfflineMessages(userId, lastSequence, null);
+    }
+
+    /**
+     * 拉取离线消息。
+     * <p>说明：序列号按「用户 + 会话」维度递增，{@code lastSequence} 会对<strong>每个会话</strong>分别生效；
+     * 精准增量请使用 {@link #syncMessages(Long, SyncMessageDTO)}。
+     *
+     * @param limit 最大返回条数，null 时使用配置默认上限
+     */
+    List<MessageVO> pullOfflineMessages(Long userId, Long lastSequence, Integer limit);
     
     /**
      * 增量同步消息
@@ -103,4 +114,14 @@ public interface MailboxService {
      * 分页获取会话消息（按序列号倒序，最新在前）
      */
     PageResult<MessageVO> getConversationMessages(Long userId, String conversationId, int pageNum, int pageSize);
+
+    /**
+     * 当前用户在所有会话中的最大信箱序列号（用于无 Redis 游标时的兜底）
+     */
+    Long getMaxMailboxSequence(Long userId);
+
+    /**
+     * 在当前用户信箱内搜索消息正文（MongoDB 查询，排除已删除）
+     */
+    PageResult<MessageVO> searchMessages(Long userId, String keyword, int pageNum, int pageSize);
 }

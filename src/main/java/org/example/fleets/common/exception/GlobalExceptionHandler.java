@@ -1,6 +1,8 @@
 package org.example.fleets.common.exception;
 
 import cn.dev33.satoken.exception.NotLoginException;
+import cn.dev33.satoken.exception.NotPermissionException;
+import cn.dev33.satoken.exception.NotRoleException;
 import lombok.extern.slf4j.Slf4j;
 import org.example.fleets.common.api.CommonResult;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -27,6 +29,15 @@ public class GlobalExceptionHandler {
     public CommonResult<?> handleNotLoginException(NotLoginException e, HttpServletRequest request) {
         log.warn("未登录访问 [{}]: {}", request.getRequestURI(), e.getMessage());
         return CommonResult.failed(ErrorCode.UNAUTHORIZED.getCode(), "请先登录");
+    }
+
+    /**
+     * 处理 Sa-Token 无权限/无角色异常
+     */
+    @ExceptionHandler({NotPermissionException.class, NotRoleException.class})
+    public CommonResult<?> handleForbiddenException(RuntimeException e, HttpServletRequest request) {
+        log.warn("无权限访问 [{}]: {}", request.getRequestURI(), e.getMessage());
+        return CommonResult.failed(ErrorCode.FORBIDDEN.getCode(), "没有权限访问");
     }
     
     /**

@@ -2,6 +2,7 @@ package org.example.fleets.group.service;
 
 import org.example.fleets.common.util.PageResult;
 import org.example.fleets.group.model.dto.GroupCreateDTO;
+import org.example.fleets.group.model.vo.GroupMemberItemVO;
 import org.example.fleets.group.model.vo.GroupVO;
 
 /**
@@ -68,4 +69,9 @@ public interface GroupService {
      * 获取群成员ID列表
      */
     java.util.List<Long> getGroupMemberIds(Long groupId);
+
+    /**
+     * 获取群成员列表（含头像、显示名），调用方须为群成员
+     */
+    java.util.List<GroupMemberItemVO> listGroupMemberItems(Long groupId, Long viewerUserId);
 }

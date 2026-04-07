@@ -11,9 +11,5 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 @EnableMongoRepositories(basePackages = "org.example.fleets")
 @EnableMongoAuditing
 public class MongoConfig {
-    // Spring Boot 会自动创建以下 Bean:
-    // - MongoClient (同步客户端)
-    // - MongoTemplate (同步模板)
-    // - ReactiveMongoClient (响应式客户端)
-    // - ReactiveMongoTemplate (响应式模板)
+    // Spring Boot 会自动创建 MongoClient、MongoTemplate（同步）
 }

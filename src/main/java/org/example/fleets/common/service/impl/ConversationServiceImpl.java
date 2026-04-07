@@ -4,9 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.fleets.common.exception.BusinessException;
+import org.example.fleets.common.exception.ErrorCode;
 import org.example.fleets.common.mapper.ConversationMapper;
 import org.example.fleets.common.model.Conversation;
 import org.example.fleets.common.service.ConversationService;
+import org.example.fleets.common.util.Assert;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -77,6 +80,50 @@ public class ConversationServiceImpl implements ConversationService {
             }
         }
     }
+
+    @Override
+    public Conversation ensureConversation(Long ownerId, Long targetId, Integer type) {
+        // 统一风格：参数校验使用项目 Assert（抛 BusinessException），不要返回 null
+        Assert.notNull(ownerId, "ownerId 不能为空");
+        Assert.notNull(targetId, "targetId 不能为空");
+        Assert.notNull(type, "type 不能为空");
+        Assert.isTrue(type == 0 || type == 1, "type 必须为 0(单聊) 或 1(群聊)");
+
+        final String conversationId = generateConversationId(type, ownerId, targetId);
+
+        // 先查：按业务 ID + ownerId 唯一定位（不限定 is_deleted，用于处理“已删除会话恢复”的场景）
+        Conversation existing = conversationMapper.selectOne(
+            new QueryWrapper<Conversation>()
+                .eq("conversation_id", conversationId)
+                .eq("owner_id", ownerId)
+        );
+        if (existing != null) {
+            // 若存在但被逻辑删除，则恢复
+            if (existing.getIsDeleted() != null && existing.getIsDeleted() == 1) {
+                existing.setIsDeleted(0);
+                // 保持 ensure 不影响业务语义：不更新 lastMessage，不主动增加未读
+                // 恢复时将未读置 0，避免“已删除会话被恢复后仍残留未读”带来困惑
+                existing.setUnreadCount(0);
+                conversationMapper.updateById(existing);
+            }
+            return existing;
+        }
+
+        // 不存在则创建“空会话”（无 lastMessage）
+        Conversation conversation = new Conversation();
+        conversation.setConversationId(conversationId);
+        conversation.setType(type);
+        conversation.setOwnerId(ownerId);
+        conversation.setTargetId(targetId);
+        conversation.setUnreadCount(0);
+        conversation.setIsTop(0);
+        conversation.setIsMute(0);
+        conversation.setIsDeleted(0);
+
+        conversationMapper.insert(conversation);
+        log.info("创建空会话: conversationId={}, ownerId={}", conversationId, ownerId);
+        return conversation;
+    }
     
     @Override
     public List<Conversation> getUserConversations(Long userId) {
@@ -99,6 +146,9 @@ public class ConversationServiceImpl implements ConversationService {
     
     @Override
     public boolean deleteConversation(String conversationId, Long userId) {
+        Assert.hasText(conversationId, "conversationId 不能为空");
+        Assert.notNull(userId, "userId 不能为空");
+
         Conversation conversation = conversationMapper.selectOne(
             new QueryWrapper<Conversation>()
                 .eq("conversation_id", conversationId)
@@ -111,11 +161,14 @@ public class ConversationServiceImpl implements ConversationService {
             log.info("删除会话成功: conversationId={}, userId={}", conversationId, userId);
             return true;
         }
-        return false;
+        throw new BusinessException(ErrorCode.NOT_FOUND, "会话");
     }
     
     @Override
     public boolean toggleTop(String conversationId, Long userId, boolean isTop) {
+        Assert.hasText(conversationId, "conversationId 不能为空");
+        Assert.notNull(userId, "userId 不能为空");
+
         Conversation conversation = conversationMapper.selectOne(
             new QueryWrapper<Conversation>()
                 .eq("conversation_id", conversationId)
@@ -129,11 +182,14 @@ public class ConversationServiceImpl implements ConversationService {
                 isTop ? "设置" : "取消", conversationId, userId);
             return true;
         }
-        return false;
+        throw new BusinessException(ErrorCode.NOT_FOUND, "会话");
     }
     
     @Override
     public boolean toggleMute(String conversationId, Long userId, boolean isMute) {
+        Assert.hasText(conversationId, "conversationId 不能为空");
+        Assert.notNull(userId, "userId 不能为空");
+
         Conversation conversation = conversationMapper.selectOne(
             new QueryWrapper<Conversation>()
                 .eq("conversation_id", conversationId)
@@ -147,7 +203,7 @@ public class ConversationServiceImpl implements ConversationService {
                 isMute ? "开启" : "关闭", conversationId, userId);
             return true;
         }
-        return false;
+        throw new BusinessException(ErrorCode.NOT_FOUND, "会话");
     }
     
     /**

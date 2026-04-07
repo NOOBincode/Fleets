@@ -1,7 +1,7 @@
 package org.example.fleets.common.api;
 
 import lombok.Data;
-import org.example.fleets.common.enums.ResultCode;
+import org.example.fleets.common.exception.ErrorCode;
 
 /**
  * 通用响应结果
@@ -26,21 +26,21 @@ public class CommonResult<T> {
      * 成功返回结果
      */
     public static <T> CommonResult<T> success(T data) {
-        return new CommonResult<>(ResultCode.SUCCESS.getCode(), ResultCode.SUCCESS.getMessage(), data);
+        return new CommonResult<>(ErrorCode.SUCCESS.getCode(), ErrorCode.SUCCESS.getMessage(), data);
     }
 
     /**
      * 成功返回结果
      */
     public static <T> CommonResult<T> success(T data, String message) {
-        return new CommonResult<>(ResultCode.SUCCESS.getCode(), message, data);
+        return new CommonResult<>(ErrorCode.SUCCESS.getCode(), message, data);
     }
 
     /**
      * 失败返回结果
      */
     public static <T> CommonResult<T> failed(T data, String message) {
-        return new CommonResult<>(ResultCode.FAILED.getCode(), message, data);
+        return new CommonResult<>(ErrorCode.FAILED.getCode(), message, data);
     }
     
     /**
@@ -54,20 +54,20 @@ public class CommonResult<T> {
      * 参数验证失败返回结果
      */
     public static <T> CommonResult<T> validateFailed(String message) {
-        return new CommonResult<>(ResultCode.VALIDATE_FAILED.getCode(), message, null);
+        return new CommonResult<>(ErrorCode.VALIDATE_FAILED.getCode(), message, null);
     }
 
     /**
      * 未登录返回结果
      */
     public static <T> CommonResult<T> unauthorized(String message) {
-        return new CommonResult<>(ResultCode.UNAUTHORIZED.getCode(), message, null);
+        return new CommonResult<>(ErrorCode.UNAUTHORIZED.getCode(), message, null);
     }
 
     /**
      * 未授权返回结果
      */
     public static <T> CommonResult<T> forbidden(String message) {
-        return new CommonResult<>(ResultCode.FORBIDDEN.getCode(), message, null);
+        return new CommonResult<>(ErrorCode.FORBIDDEN.getCode(), message, null);
     }
 }

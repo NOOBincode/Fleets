@@ -23,7 +23,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
     
     /**
      * 握手前
-     * TODO: 实现 token 验证和用户信息设置
+
      */
     @Override
     public boolean beforeHandshake(ServerHttpRequest request, 
@@ -31,10 +31,6 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                                   WebSocketHandler wsHandler, 
                                   Map<String, Object> attributes) throws Exception {
         
-        // TODO: 从请求中获取 token
-        // TODO: 验证 token
-        // TODO: 将用户 ID 存入 attributes
-        // TODO: 返回 true 允许握手，false 拒绝握手
         String token = resolveToken(request);
         if (!StringUtils.hasText(token)) {
             log.warn("websocket握手失败:未提供token");

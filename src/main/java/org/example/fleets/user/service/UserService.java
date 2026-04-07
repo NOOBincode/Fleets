@@ -51,4 +51,7 @@ public interface UserService {
 
     // 分页查询用户列表
     PageResult<UserVO> getUserList(UserQueryDTO queryDTO, Integer pageNum, Integer pageSize);
+
+    // 刷新Token（返回新的过期时间）
+    Long refreshToken();
 }

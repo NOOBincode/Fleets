@@ -6,6 +6,7 @@ import org.example.fleets.message.model.enums.MessageStatus;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
@@ -13,7 +14,9 @@ import java.util.Date;
  */
 @Data
 @Document(collection = "message")
-public class Message {
+public class Message implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /**
      * 从发送DTO构建消息（仅设置业务字段，id/sendTime 由持久层生成）
@@ -63,4 +66,7 @@ public class Message {
     
     // 扩展信息（JSON格式）
     private String extra;
+    
+    // 会话ID（用于前端匹配消息到会话）
+    private String conversationId;
 }

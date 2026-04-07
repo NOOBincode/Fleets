@@ -1,5 +1,6 @@
 package org.example.fleets.file.service.impl;
 
+import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.fleets.common.constant.LogConstants;
@@ -15,14 +16,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.UUID;
 
-/**
- * 文件服务实现类 - 本地存储方案
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -30,24 +29,39 @@ public class FileServiceImpl implements FileService {
 
     private final FileMapper fileMapper;
     
-    // 文件上传根目录
-    @Value("${file.upload.path:upload}")
+    @Value("${file.upload.path}")
     private String uploadPath;
     
-    // 文件访问URL前缀
     @Value("${file.access.url:http://localhost:8080/files}")
     private String accessUrl;
     
-    // 文件大小限制(MB)
-    private static final long MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-    private static final long MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
-    private static final long MAX_VOICE_SIZE = 20 * 1024 * 1024; // 20MB
-    private static final long MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
+    private static final long MAX_FILE_SIZE = 100 * 1024 * 1024;
+    private static final long MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+    private static final long MAX_VOICE_SIZE = 20 * 1024 * 1024;
+    private static final long MAX_VIDEO_SIZE = 100 * 1024 * 1024;
     
-    // 允许的文件类型
     private static final String[] IMAGE_TYPES = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"};
     private static final String[] VOICE_TYPES = {".mp3", ".wav", ".amr", ".m4a"};
     private static final String[] VIDEO_TYPES = {".mp4", ".avi", ".mov", ".wmv", ".flv"};
+
+    private File uploadDir;
+
+    @PostConstruct
+    public void init() {
+        uploadDir = new File(uploadPath);
+        if (!uploadDir.isAbsolute()) {
+            uploadDir = new File(System.getProperty("user.dir"), uploadPath);
+        }
+        if (!uploadDir.exists()) {
+            boolean created = uploadDir.mkdirs();
+            if (created) {
+                log.info("创建上传目录: {}", uploadDir.getAbsolutePath());
+            } else {
+                log.warn("无法创建上传目录: {}", uploadDir.getAbsolutePath());
+            }
+        }
+        log.info("文件上传目录: {}", uploadDir.getAbsolutePath());
+    }
 
     @Override
     public String uploadFile(Long userId, MultipartFile file) {
@@ -162,22 +176,30 @@ public class FileServiceImpl implements FileService {
             String datePath = new SimpleDateFormat("yyyy/MM/dd").format(new Date());
             String fileName = UUID.randomUUID().toString() + extension;
             String relativePath = category + "/" + datePath + "/" + fileName;
-            String fullPath = uploadPath + "/" + relativePath;
+            String fullPath = uploadDir.getAbsolutePath() + "/" + relativePath;
             
             // 5. 创建目录
             File dest = new File(fullPath);
-            if (!dest.getParentFile().exists()) {
-                dest.getParentFile().mkdirs();
+            File parentDir = dest.getParentFile();
+            if (!parentDir.exists()) {
+                boolean created = parentDir.mkdirs();
+                if (!created) {
+                    throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED, "无法创建上传目录: " + parentDir.getAbsolutePath());
+                }
             }
             
-            // 6. 保存文件
-            file.transferTo(dest);
+            // 6. 获取文件内容并计算 MD5
+            byte[] fileBytes = file.getBytes();
+            String fileMd5 = DigestUtils.md5DigestAsHex(fileBytes);
             
-            // 7. 生成访问URL
+            // 7. 保存文件 (使用流复制，避免 transferTo 在 Windows 上的路径问题)
+            try (FileOutputStream fos = new FileOutputStream(dest)) {
+                fos.write(fileBytes);
+                fos.flush();
+            }
+            
+            // 8. 生成访问URL
             String fileUrl = accessUrl + "/" + relativePath;
-            
-            // 7.5 计算文件 MD5（用于去重与完整性校验）
-            String fileMd5 = DigestUtils.md5DigestAsHex(file.getBytes());
             
             // 8. 保存文件元数据到数据库
             FileMetadata metadata = new FileMetadata();

@@ -2,51 +2,63 @@ package org.example.fleets.message.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.fleets.message.repository.MessageRepository;
+import org.example.fleets.common.util.Assert;
+import org.example.fleets.mailbox.service.MailboxService;
+import org.example.fleets.message.outbox.job.MqOutboxRetryJob;
 import org.example.fleets.message.service.MessageAckService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 /**
- * 消息确认服务实现类
- * 
- * TODO: 实现消息确认相关功能
+ * 消息确认服务实现类（送达占位；已读落库信箱；Outbox 重试与补偿）
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MessageAckServiceImpl implements MessageAckService {
     
-    private final MessageRepository messageRepository;
+    private final MailboxService mailboxService;
+    private final MqOutboxRetryJob mqOutboxRetryJob;
     
     @Override
     public void handleDeliveredAck(Long userId, String messageId) {
-        // TODO: 实现送达确认逻辑
-        log.warn("送达确认功能未实现: userId={}, messageId={}", userId, messageId);
+        // P0：当前信箱模型只区分未读/已读/已删除；送达态暂不落库，保持接口幂等且可观测
+        Assert.notNull(userId, "用户ID不能为空");
+        Assert.hasText(messageId, "messageId不能为空");
+        log.debug("收到送达确认: userId={}, messageId={}", userId, messageId);
     }
     
     @Override
     public void handleReadAck(Long userId, String messageId) {
-        // TODO: 实现已读确认逻辑
-        log.warn("已读确认功能未实现: userId={}, messageId={}", userId, messageId);
+        Assert.notNull(userId, "用户ID不能为空");
+        Assert.hasText(messageId, "messageId不能为空");
+        mailboxService.markAsReadByMessageId(userId, messageId);
     }
     
     @Override
     public void batchHandleReadAck(Long userId, List<String> messageIds) {
-        // TODO: 实现批量已读确认逻辑
-        log.warn("批量已读确认功能未实现: userId={}, count={}", userId, messageIds.size());
+        Assert.notNull(userId, "用户ID不能为空");
+        Assert.notEmpty(messageIds, "messageIds不能为空");
+        // P0：先用循环保证正确性与幂等；后续可优化为 Mongo 批量更新
+        for (String messageId : messageIds) {
+            if (messageId == null || messageId.trim().isEmpty()) {
+                continue;
+            }
+            mailboxService.markAsReadByMessageId(userId, messageId);
+        }
     }
     
     @Override
     public void retryFailedMessages() {
-        // TODO: 实现消息重试逻辑
-        log.debug("消息重试功能未实现");
+        // 复用 Outbox 重试逻辑：手动触发一次扫描与投递
+        mqOutboxRetryJob.retry();
     }
     
     @Override
     public void checkTimeoutMessages() {
-        // TODO: 实现超时检查逻辑
-        log.debug("超时检查功能未实现");
+        // P0：当前只做 Outbox 级别的超时补偿（已由 retry 负责）。
+        // 送达/已读超时需要 per-user delivered 状态模型，后续再补。
+        mqOutboxRetryJob.retry();
     }
 }

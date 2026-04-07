@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.fleets.common.exception.BusinessException;
 import org.example.fleets.common.exception.ErrorCode;
+import org.example.fleets.common.util.Assert;
 import org.example.fleets.expression.mapper.ExpressionMapper;
 import org.example.fleets.expression.model.entity.Expression;
 import org.example.fleets.expression.model.vo.ExpressionCategoryVO;
@@ -91,23 +92,28 @@ public class ExpressionServiceImpl implements ExpressionService {
     @Override
     public boolean deleteExpression(Long userId, Long expressionId) {
         log.info("删除自定义表情包，userId: {}, expressionId: {}", userId, expressionId);
-        
+
+        Assert.notNull(userId, "userId不能为空");
+        Assert.notNull(expressionId, "expressionId不能为空");
+
         try {
             // 查询表情包
             Expression expression = expressionMapper.selectById(expressionId);
             if (expression == null) {
-                throw new BusinessException(ErrorCode.PARAM_ERROR, "表情包不存在");
+                throw new BusinessException(ErrorCode.NOT_FOUND, "表情包");
             }
             
             // 只能删除自己的表情包
             if (!userId.equals(expression.getUserId())) {
-                throw new BusinessException(ErrorCode.PARAM_ERROR, "无权删除该表情包");
+                throw new BusinessException(ErrorCode.FORBIDDEN);
             }
             
             // 逻辑删除
             int result = expressionMapper.deleteById(expressionId);
             return result > 0;
             
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("删除表情包异常，userId: {}, expressionId: {}", userId, expressionId, e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除表情包失败");

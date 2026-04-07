@@ -5,10 +5,13 @@ import lombok.RequiredArgsConstructor;
 import org.example.fleets.common.api.CommonResult;
 import org.example.fleets.common.util.PageResult;
 import org.example.fleets.user.model.dto.FriendAddDTO;
+import org.example.fleets.user.model.dto.UpdateFriendGroupRequest;
+import org.example.fleets.user.model.dto.UpdateFriendRemarkRequest;
 import org.example.fleets.user.model.vo.FriendApplyVO;
 import org.example.fleets.user.model.vo.FriendVO;
 import org.example.fleets.user.model.vo.GroupingFriendVO;
 import org.example.fleets.user.service.FriendshipService;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +22,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/friendship")
+@Validated
 public class FriendshipController {
     
     private final FriendshipService friendshipService;
@@ -72,6 +76,34 @@ public class FriendshipController {
         Integer count = friendshipService.getPendingRequestCount(userId);
         return CommonResult.success(count);
     }
+
+    /**
+     * 我发出的待确认申请列表（实现见 FriendshipServiceImpl TODO）
+     */
+    @GetMapping("/requests/sent")
+    public CommonResult<List<FriendApplyVO>> getSentFriendRequests() {
+        Long userId = StpUtil.getLoginIdAsLong();
+        return CommonResult.success(friendshipService.getSentFriendRequests(userId));
+    }
+
+    /**
+     * 我发出的待确认申请数量
+     */
+    @GetMapping("/requests/sent/count")
+    public CommonResult<Integer> getSentPendingCount() {
+        Long userId = StpUtil.getLoginIdAsLong();
+        return CommonResult.success(friendshipService.getSentPendingCount(userId));
+    }
+
+    /**
+     * 发起方撤销申请（双向 status=4，实现见 FriendshipServiceImpl TODO）
+     */
+    @PostMapping("/requests/cancel/{friendId}")
+    public CommonResult<Boolean> cancelFriendRequest(@PathVariable Long friendId) {
+        Long userId = StpUtil.getLoginIdAsLong();
+        boolean ok = friendshipService.cancelFriendRequest(userId, friendId);
+        return CommonResult.success(ok, "已撤销申请");
+    }
     
     /**
      * 删除好友
@@ -104,27 +136,39 @@ public class FriendshipController {
     }
     
     /**
-     * 更新好友备注
+     * 更新好友备注（请求体 JSON：{ "remark": "备注内容" }）
      */
     @PutMapping("/{friendId}/remark")
     public CommonResult<Boolean> updateRemark(
             @PathVariable Long friendId,
-            @RequestParam String remark) {
+            @RequestBody @Validated UpdateFriendRemarkRequest body) {
+        String remark = body.getRemark();
         Long userId = StpUtil.getLoginIdAsLong();
         boolean result = friendshipService.updateRemark(userId, friendId, remark);
         return CommonResult.success(result, "备注已更新");
     }
     
     /**
-     * 更新好友分组
+     * 更新好友分组（请求体 JSON：{ "groupName": "分组名" }）
      */
     @PutMapping("/{friendId}/group")
     public CommonResult<Boolean> updateGroup(
             @PathVariable Long friendId,
-            @RequestParam String groupName) {
+            @RequestBody @Validated UpdateFriendGroupRequest body) {
+        String groupName = body.getGroupName();
         Long userId = StpUtil.getLoginIdAsLong();
         boolean result = friendshipService.updateGroup(userId, friendId, groupName);
         return CommonResult.success(result, "分组已更新");
+    }
+    
+    /**
+     * 检查与指定用户是否为好友关系
+     */
+    @GetMapping("/{friendId}/check")
+    public CommonResult<Boolean> checkFriendship(@PathVariable Long friendId) {
+        Long userId = StpUtil.getLoginIdAsLong();
+        boolean isFriend = friendshipService.isFriend(userId, friendId);
+        return CommonResult.success(isFriend);
     }
     
     /**

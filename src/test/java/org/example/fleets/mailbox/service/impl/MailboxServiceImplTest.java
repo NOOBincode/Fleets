@@ -9,7 +9,7 @@ import org.example.fleets.mailbox.model.vo.SyncResult;
 import org.example.fleets.mailbox.model.vo.UnreadCountVO;
 import org.example.fleets.mailbox.repository.MailboxMessageRepository;
 import org.example.fleets.mailbox.repository.UserMailboxRepository;
-import org.example.fleets.cache.redis.RedisService;
+import org.example.fleets.common.cache.GenericCacheService;
 import org.example.fleets.common.config.properties.FleetsProperties;
 import org.example.fleets.mailbox.service.SequenceService;
 import org.example.fleets.message.repository.MessageRepository;
@@ -40,7 +40,7 @@ class MailboxServiceImplTest {
     @Mock
     private MailboxMessageRepository mailboxMessageRepository;
     @Mock
-    private RedisService redisService;
+    private GenericCacheService genericCacheService;
     @Mock
     private SequenceService sequenceService;
     @Mock
@@ -67,18 +67,18 @@ class MailboxServiceImplTest {
     @Test
     @DisplayName("生成序列号 - 成功")
     void testGenerateSequence_Success() {
-        when(redisService.increment(anyString())).thenReturn(1L);
+        when(genericCacheService.increment(anyString())).thenReturn(1L);
 
         Long seq = mailboxService.generateSequence(USER_ID, CONVERSATION_ID);
 
         assertThat(seq).isEqualTo(1L);
-        verify(redisService, times(1)).increment(anyString());
+        verify(genericCacheService, times(1)).increment(anyString());
     }
 
     @Test
     @DisplayName("获取未读消息数 - 无缓存从数据库统计")
     void testGetUnreadCount_FromDatabase() {
-        when(redisService.get(anyString())).thenReturn(null);
+        when(genericCacheService.get(anyString())).thenReturn(null);
         when(mailboxMessageRepository.countByUserIdAndStatus(USER_ID, 0)).thenReturn(0L);
         when(userMailboxRepository.findByUserId(USER_ID)).thenReturn(Collections.emptyList());
 
@@ -91,7 +91,7 @@ class MailboxServiceImplTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getTotalUnread()).isEqualTo(0);
-        verify(redisService, times(1)).set(anyString(), any(UnreadCountVO.class), anyInt(), any());
+        verify(genericCacheService, times(1)).set(anyString(), any(UnreadCountVO.class), anyInt(), any());
     }
 
     @Test

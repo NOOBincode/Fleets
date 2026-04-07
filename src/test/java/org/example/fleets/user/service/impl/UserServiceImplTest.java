@@ -1,7 +1,7 @@
 package org.example.fleets.user.service.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
-import org.example.fleets.cache.redis.RedisService;
+import org.example.fleets.common.cache.GenericCacheService;
 import org.example.fleets.common.exception.BusinessException;
 import org.example.fleets.user.converter.UserConverter;
 import org.example.fleets.user.mapper.UserMapper;
@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.redisson.api.RLock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -43,7 +44,9 @@ class UserServiceImplTest {
     @MockBean
     private UserCacheService userCacheService;
     @MockBean
-    private RedisService redisService;
+    private GenericCacheService genericCacheService;
+    @MockBean
+    private RLock rLock;
     @MockBean
     private BCryptPasswordEncoder passwordEncoder;
     @MockBean
@@ -92,10 +95,9 @@ class UserServiceImplTest {
     
     @Test
     @DisplayName("用户注册 - 成功场景")
-    void testRegister_Success() {
-        // Given
-        when(redisService.setIfAbsent(anyString(), anyString(), anyLong(), any(TimeUnit.class)))
-            .thenReturn(true);
+    void testRegister_Success() throws InterruptedException {
+        when(genericCacheService.getLock(anyString())).thenReturn(rLock);
+        when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
         when(userMapper.selectCount(any())).thenReturn(0L);
         when(passwordEncoder.encode(anyString())).thenReturn("encoded_password");
         when(userMapper.insert(any(User.class))).thenAnswer(invocation -> {
@@ -104,29 +106,24 @@ class UserServiceImplTest {
             return 1;
         });
         
-        // When
         UserVO result = userService.register(registerDTO);
         
-        // Then
         assertThat(result).isNotNull();
         assertThat(result.getUsername()).isEqualTo("testuser");
         assertThat(result.getNickname()).isEqualTo("Test User");
         
-        // 验证方法调用
         verify(userMapper, times(1)).insert(any(User.class));
-        verify(redisService, times(1)).delete(anyString());
+        verify(genericCacheService, times(1)).unlock(any(RLock.class));
         verify(passwordEncoder, times(1)).encode("password123");
     }
     
     @Test
     @DisplayName("用户注册 - 用户名已存在")
-    void testRegister_UsernameExists() {
-        // Given
-        when(redisService.setIfAbsent(anyString(), anyString(), anyLong(), any(TimeUnit.class)))
-            .thenReturn(true);
+    void testRegister_UsernameExists() throws InterruptedException {
+        when(genericCacheService.getLock(anyString())).thenReturn(rLock);
+        when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
         when(userMapper.selectCount(any())).thenReturn(1L);
         
-        // When & Then
         assertThatThrownBy(() -> userService.register(registerDTO))
             .isInstanceOf(BusinessException.class)
             .hasMessageContaining("用户已存在");
@@ -135,27 +132,25 @@ class UserServiceImplTest {
 
     @Test
     @DisplayName("用户注册 - 获取分布式锁失败")
-    void testRegister_LockFailed() {
-        when(redisService.setIfAbsent(anyString(), anyString(), anyLong(), any(TimeUnit.class)))
-            .thenReturn(false);
+    void testRegister_LockFailed() throws InterruptedException {
+        when(genericCacheService.getLock(anyString())).thenReturn(rLock);
+        when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(false);
 
         assertThatThrownBy(() -> userService.register(registerDTO))
             .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("操作失败");
+            .hasMessageContaining("操作过于频繁");
         verify(userMapper, never()).selectCount(any());
     }
     
     @Test
     @DisplayName("用户注册 - 手机号已存在")
-    void testRegister_PhoneExists() {
-        // Given
-        when(redisService.setIfAbsent(anyString(), anyString(), anyLong(), any(TimeUnit.class)))
-            .thenReturn(true);
+    void testRegister_PhoneExists() throws InterruptedException {
+        when(genericCacheService.getLock(anyString())).thenReturn(rLock);
+        when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
         when(userMapper.selectCount(any()))
-            .thenReturn(0L)  // 用户名不存在
-            .thenReturn(1L); // 手机号已存在
+            .thenReturn(0L)
+            .thenReturn(1L);
         
-        // When & Then
         assertThatThrownBy(() -> userService.register(registerDTO))
             .isInstanceOf(BusinessException.class)
             .hasMessageContaining("用户已存在");

@@ -3,8 +3,10 @@ package org.example.fleets.message.controller;
 import lombok.RequiredArgsConstructor;
 import cn.dev33.satoken.stp.StpUtil;
 import org.example.fleets.common.api.CommonResult;
+import org.example.fleets.message.model.dto.UpdateSequenceRequest;
 import org.example.fleets.message.model.vo.MessageVO;
 import org.example.fleets.message.service.MessageSyncService;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -17,6 +19,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/message/sync")
 @RequiredArgsConstructor
+@Validated
 public class MessageSyncController {
     
     private final MessageSyncService messageSyncService;
@@ -49,10 +52,11 @@ public class MessageSyncController {
     }
     
     /**
-     * 更新同步序列号
+     * 更新同步序列号（请求体 JSON：{ "sequence": 123 }，与前端统一入参）
      */
     @PostMapping("/update-sequence")
-    public CommonResult<Boolean> updateSequence(@RequestParam Long sequence) {
+    public CommonResult<Boolean> updateSequence(@RequestBody @Validated UpdateSequenceRequest body) {
+        long sequence = body.getSequence();
         Long userId = StpUtil.getLoginIdAsLong();
         messageSyncService.updateLastSequence(userId, sequence);
         return CommonResult.success(true);
